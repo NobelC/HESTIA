@@ -1,0 +1,27 @@
+# Base de datos del usuario — NUNCA al repo
+*.db
+*.sqlite
+ 
+# Build artifacts C++
+build/
+*.so
+*.o
+*.a
+ 
+# Python
+__pycache__/
+*.pyc
+.venv/
+ 
+# IDEs
+.vscode/
+.idea/
+*.swp
+ 
+# CMake
+CMakeCache.txt
+CMakeFiles/
+ 
+# Logs de tests y piloto
+test_output/
+*.log
