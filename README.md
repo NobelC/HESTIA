@@ -53,10 +53,12 @@ HESTIA opera en **dos dimensiones de adaptación simultáneas**, algo que ningun
 | **Simulación** | Python (scripts externos) | Monte Carlo y bot de estrés fuera del sistema principal |
 
 ---
-### Flujo de Decisión por Ejercicio
-[Sesión inicia] → [MAB selecciona método] → [ZoneBlender define ejercicio según P(L)]
-       ↓
-[Niño responde: correcto, tiempo_ms]
-       ↓
-[BKT actualiza P(L)]  ←→  [MAB actualiza Q(método)]
+## 📜 Licencia
 
+Este proyecto está licenciado bajo la **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+> ✅ Eres libre de usar, estudiar, modificar y compartir este software.  
+> 🔓 Si lo ejecutas como servicio en red o distribuyes copias, se debe mantener el código fuente abierto y licenciado bajo los mismos términos.
+
+📖 [Texto completo de la licencia](https://www.gnu.org/licenses/agpl-3.0.html)  
+© 2026
