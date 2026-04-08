@@ -1,0 +1,21 @@
+---
+BasedOnStyle: Google
+UseTab: Never
+IndentWidth: 4
+TabWidth: 4
+ColumnLimit: 100
+Standard: c++20
+AccessModifierOffset: -4
+SortIncludes: false
+IncludeBlocks: Preserve
+BraceWrapping:
+  AfterClass: true
+  AfterFunction: true
+  AfterStruct: true
+  SplitEmptyFunction: false
+  SplitEmptyRecord: false
+  SplitEmptyNamespace: false
+SpacesInAngles: Never
+SpaceAfterCStyleCast: false
+AlignEscapedNewlines: DontAlign
+...

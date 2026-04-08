@@ -1,0 +1,21 @@
+version: "3.9"
+services:
+  hestia-dev:
+    build: .
+    container_name: hestia-dev
+    volumes:
+      - .:/workspace
+      - ~/.gitconfig:/home/dev/.gitconfig:ro
+      - ~/.ssh:/home/dev/.ssh:ro
+      - nvim-data:/home/dev/.local/share/nvim
+      - vscode-data:/home/dev/.vscode-server
+    environment:
+      - PYTHONUNBUFFERED=1
+      - TERM=xterm-256color
+    stdin_open: true
+    tty: true
+    command: ["bash", "-c", "if [ ! -f /home/dev/.initialized ]; then /home/dev/setup.sh && touch /home/dev/.initialized; fi; tail -f /dev/null"]
+
+volumes:
+  nvim-data:
+  vscode-data:

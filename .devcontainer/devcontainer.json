@@ -1,0 +1,22 @@
+{
+  "name": "HESTIA Dev",
+  "dockerComposeFile": ["../docker-compose.yml"],
+  "service": "hestia-dev",
+  "workspaceFolder": "/workspace",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "ms-python.python",
+        "ms-python.vscode-pylance",
+        "ms-vscode.cpptools",
+        "llvm-vs-code-extensions.vscode-clangd",
+        "eamodio.gitlens"
+      ],
+      "settings": {
+        "python.defaultInterpreterPath": "/opt/venv/bin/python",
+        "C_Cpp.clang_format_fallbackStyle": "file",
+        "clangd.path": "/usr/bin/clangd"
+      }
+    }
+  }
+}

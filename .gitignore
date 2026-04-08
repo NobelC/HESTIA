@@ -1,27 +1,34 @@
-# Base de datos del usuario — NUNCA al repo
-*.db
-*.sqlite
- 
-# Build artifacts C++
+# Build / CMake
 build/
-*.so
-*.o
-*.a
- 
-# Python
-__pycache__/
-*.pyc
-.venv/
- 
-# IDEs
-.vscode/
-.idea/
-*.swp
- 
-# CMake
+cmake-build-*/
 CMakeCache.txt
 CMakeFiles/
- 
-# Logs de tests y piloto
-test_output/
-*.log
+cmake_install.cmake
+Makefile
+*.cmake
+compile_commands.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+.env
+*.egg-info/
+dist/
+.pytest_cache/
+
+# IDE / OS
+.vscode/settings.json
+.vscode/c_cpp_properties.json
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# Data (si es sensible o grande)
+data/*.csv
+data/*.sqlite
