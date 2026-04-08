@@ -54,11 +54,4 @@ HESTIA opera en **dos dimensiones de adaptación simultáneas**, algo que ningun
 
 ---
 ## 📜 Licencia
-
-Este proyecto está licenciado bajo la **GNU Affero General Public License v3.0 (AGPL-3.0)**.
-
-> ✅ Eres libre de usar, estudiar, modificar y compartir este software.  
-> 🔓 Si lo ejecutas como servicio en red o distribuyes copias, se debe mantener el código fuente abierto y licenciado bajo los mismos términos.
-
-📖 [Texto completo de la licencia](https://www.gnu.org/licenses/agpl-3.0.html)  
-© 2026
+**GNU Affero General Public License v3.0 (AGPL-3.0)**.
