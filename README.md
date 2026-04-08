@@ -53,5 +53,5 @@ HESTIA opera en **dos dimensiones de adaptación simultáneas**, algo que ningun
 | **Simulación** | Python (scripts externos) | Monte Carlo y bot de estrés fuera del sistema principal |
 
 ---
-## 📜 Licencia
+##  Licencia
 **GNU Affero General Public License v3.0 (AGPL-3.0)**.
