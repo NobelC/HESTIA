@@ -1,0 +1,288 @@
+# .github/workflows/ci.yml
+# =============================================================================
+# HESTIA CI — Continuous Integration Workflow
+# =============================================================================
+# Propósito: Validar compilación, tests y calidad de código en cada push/PR
+# Ejecuta: Backend C++20 (CMake/Catch2) + Frontend Python (ruff/pyright/pytest)
+# Docker: Solo se construye y publica en releases oficiales
+# =============================================================================
+
+name: HESTIA CI
+
+on:
+  push:
+    branches: [ "main", "develop" ]
+  pull_request:
+    branches: [ "main", "develop" ]
+  # Construir y publicar imagen Docker SOLO en releases oficiales
+  release:
+    types: [ published ]
+
+# Variables de entorno globales
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  CMAKE_BUILD_TYPE: Debug
+  BUILD_TESTS: ON
+
+# =============================================================================
+# JOB 1: Backend C++20 — Compilación + Tests Catch2
+# =============================================================================
+jobs:
+  test-backend:
+    name:  Backend C++20
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+
+    steps:
+      - name:  Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Necesario para caché de CMake
+
+      - name:  Instalar dependencias del sistema
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cmake \
+            git \
+            gcc-13 \
+            g++-13 \
+            clang-18 \
+            python3.12 \
+            python3.12-venv \
+            python3-pip \
+            libsqlite3-dev
+
+      - name:  Configurar cache de CMake
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cache/CMake
+            build/CMakeFiles
+            build/_deps
+          key: ${{ runner.os }}-cmake-${{ hashFiles('**/CMakeLists.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-cmake-
+
+      - name:  Configurar CMake
+        run: |
+          cmake -S . \
+                -B build \
+                -DCMAKE_BUILD_TYPE=${{ env.CMAKE_BUILD_TYPE }} \
+                -DBUILD_TESTS=${{ env.BUILD_TESTS }} \
+                -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name:  Compilar backend
+        run: cmake --build build -j$(nproc) --target all
+
+      - name:  Ejecutar tests Catch2
+        run: |
+          ctest --test-dir build \
+                --output-on-failure \
+                --verbose \
+                -j$(nproc)
+
+      - name:  Subir reporte de tests (opcional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: backend-test-results
+          path: build/Testing/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # =============================================================================
+  # JOB 2: Frontend Python — Linting + Type Check + Tests
+  # =============================================================================
+  test-frontend:
+    name:  Frontend Python
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    steps:
+      - name:  Checkout repository
+        uses: actions/checkout@v4
+
+      - name:  Configurar Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: 'pip'
+          cache-dependency-path: 'requirements.txt'
+
+      - name:  Instalar dependencias Python
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          fi
+          # Herramientas de calidad de código (siempre instalar)
+          pip install pytest ruff pyright
+
+      - name:  Lint con Ruff (non-blocking para warnings)
+        run: |
+          if [ -d "frontend" ]; then
+            python -m ruff check frontend/ --exit-zero \
+              || echo " Ruff encontró warnings (no bloqueantes en CI)"
+          else
+            echo " Directorio frontend/ no encontrado, skipping lint"
+          fi
+
+      - name:  Type check con Pyright
+        run: |
+          if [ -d "frontend" ]; then
+            python -m pyright frontend/ --skipunannotated \
+              || echo " Pyright encontró issues de tipado (no bloqueantes en CI)"
+          else
+            echo " Directorio frontend/ no encontrado, skipping type check"
+          fi
+
+      - name:  Ejecutar tests de Python
+        run: |
+          if [ -d "frontend/tests" ] && [ "$(ls -A frontend/tests 2>/dev/null)" ]; then
+            python -m pytest frontend/tests/ \
+              -v \
+              --tb=short \
+              --maxfail=3 \
+              --disable-warnings
+          else
+            echo " No hay tests en frontend/tests/, skipping pytest"
+            exit 0
+          fi
+
+      - name:  Subir reporte de cobertura (opcional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: frontend/.pytest_cache/
+          retention-days: 7
+          if-no-files-found: ignore
+
+  # =============================================================================
+  # JOB 3: Construir y Publicar Imagen Docker (SOLO en releases)
+  # =============================================================================
+  build-docker:
+    name:  Docker Image
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    # Solo ejecutar si: (1) los tests pasaron Y (2) es un release oficial
+    needs: [ test-backend, test-frontend ]
+    if: github.event_name == 'release'
+    permissions:
+      contents: read
+      packages: write  # Necesario para push a GHCR
+
+    steps:
+      - name:  Checkout repository
+        uses: actions/checkout@v4
+
+      - name:  Configurar caché de Docker Buildx
+        uses: actions/cache@v4
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
+      - name:  Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          driver-opts: |
+            image=moby/buildkit:master
+            network=host
+
+      - name:  Login en GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name:  Extraer metadata para Docker (tags y labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=semver,pattern={{major}}
+            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'main') }}
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.version=${{ github.event.release.tag_name }}
+
+      - name:  Construir y publicar imagen Docker
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache-new,mode=max
+          build-args: |
+            BUILDKIT_INLINE_CACHE=1
+
+      - name:  Limpiar caché de Buildx (evitar crecimiento infinito)
+        run: |
+          rm -rf /tmp/.buildx-cache
+          mv /tmp/.buildx-cache-new /tmp/.buildx-cache
+
+      - name:  Confirmar publicación
+        run: |
+          echo " Imagen publicada exitosamente:"
+          echo "${{ steps.meta.outputs.tags }}" | tr ',' '\n' | sed 's/^/  • /'
+
+  # =============================================================================
+  # JOB 4: Reporte de Estado Final (opcional pero útil)
+  # =============================================================================
+  report-status:
+    name:  Reporte Final
+    runs-on: ubuntu-24.04
+    needs: [ test-backend, test-frontend, build-docker ]
+    if: always()  # Ejecutar siempre para reportar estado
+
+    steps:
+      - name:  Generar reporte de estado
+        run: |
+          echo "##  HESTIA CI — Reporte de Estado" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Job | Estado | Detalles |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|--------|----------|" >> $GITHUB_STEP_SUMMARY
+          
+          # Backend
+          if [ "${{ needs.test-backend.result }}" == "success" ]; then
+            echo "|  Backend C++20 |  Success | [Ver logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "|  Backend C++20 |  Failed | [Ver logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Frontend
+          if [ "${{ needs.test-frontend.result }}" == "success" ]; then
+            echo "|  Frontend Python |  Success | [Ver logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "|  Frontend Python |  Failed | [Ver logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          # Docker (solo si aplica)
+          if [ "${{ github.event_name }}" == "release" ]; then
+            if [ "${{ needs.build-docker.result }}" == "success" ]; then
+              echo "|  Docker Image |  Published | [Ver en GHCR](https://github.com/${{ github.repository }}/pkgs/container/hestia) |" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "|  Docker Image |  Failed | [Ver logs](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) |" >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "|  Docker Image |  Skipped | Solo en releases |" >> $GITHUB_STEP_SUMMARY
+          fi
+          
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Trigger:** \`${{ github.event_name }}\`" >> $GITHUB_STEP_SUMMARY
