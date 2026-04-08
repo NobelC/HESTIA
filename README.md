@@ -40,30 +40,7 @@ HESTIA opera en **dos dimensiones de adaptación simultáneas**, algo que ningun
 
 ---
 
-## 🏗️ Arquitectura y Stack Tecnológico
-hestia/
-├── backend/                  # Motor IA en C++20
-│   ├── include/              # Headers: BKTEngine, MABEngine, ZoneBlender...
-│   ├── src/                  # Implementaciones
-│   ├── tests/                # Tests unitarios con Catch2
-│   └── CMakeLists.txt
-├── frontend/                 # UI en Python + TKinter
-│   ├── app.py
-│   ├── views/                # Pantallas: AssentScreen, ExerciseScreen...
-│   └── bridge/hestia_bridge.py  # Único punto de contacto con C++
-├── data/                     # JSON editables
-│   ├── skill_graph.json
-│   └── exercises/
-├── simulation/               # Validación teórica
-│   ├── monte_carlo.py
-│   └── stress_bot.py
-├── docs/                     # Documentación técnica
-├── scripts/
-│   ├── build.sh
-│   └── migrations/           # Scripts de migración de DB
-├── .gitignore
-└── README.md
-
+## 🏗️ Stack Tecnológico
 
 | Capa | Tecnología | Justificación |
 |------|-----------|--------------|
