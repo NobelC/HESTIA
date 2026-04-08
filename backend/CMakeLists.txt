@@ -1,3 +1,5 @@
+# backend/CMakeLists.txt
+
 # Libreria estatica con todo el backend
 add_library(hestia_backend STATIC
     src/BKTEngine.cpp
@@ -10,7 +12,7 @@ add_library(hestia_backend STATIC
     src/ZoneBlender.cpp
 )
 
-# Expone los headers publicos
+# Expone los headers publicos a quien enlace con esta librería
 target_include_directories(hestia_backend
     PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
 )
@@ -18,7 +20,11 @@ target_include_directories(hestia_backend
 # Fuerza C++20 en este target
 target_compile_features(hestia_backend PUBLIC cxx_std_20)
 
-# Tests
+# Enlazar SQLite si usas PersistenceLayer (necesario en Linux)
+find_package(SQLite3 REQUIRED)
+target_link_libraries(hestia_backend PRIVATE SQLite::SQLite3)
+
+# Tests: Si BUILD_TESTS es ON, entra al directorio de tests
 if(BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)

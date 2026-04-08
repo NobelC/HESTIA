@@ -12,7 +12,20 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Opciones
 option(BUILD_TESTS "Compilar tests unitarios" ON)
 
-# Subdirectorio principal
+# --- FetchContent para Catch2 (Automático, sin instalar nada en el sistema) ---
+include(FetchContent)
+if(BUILD_TESTS)
+    FetchContent_Declare(
+        Catch2
+        GIT_REPOSITORY https://github.com/catchorg/Catch2.git
+        GIT_TAG        v3.4.0  # Versión estable reciente
+    )
+    FetchContent_MakeAvailable(Catch2)
+endif()
+
+enable_testing()
+
+# Subdirectorio principal (Backend)
 add_subdirectory(backend)
 
 # Target opcional para formatear todo el código C++ con clang-format
