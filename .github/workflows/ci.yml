@@ -97,57 +97,49 @@ jobs:
   # JOB 2: Frontend Python — Linting + Type Check + Tests
   # =============================================================================
   test-frontend:
-    name: 🎨 Frontend Python
+    name:  Frontend Python
     runs-on: ubuntu-24.04
     timeout-minutes: 20
 
     steps:
-      - name: 📦 Checkout repository
+      - name:  Checkout repository
         uses: actions/checkout@v4
 
-      - name: 🐍 Configurar Python 3.12
+      - name:  Configurar Python 3.12
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
           cache: 'pip'
           cache-dependency-path: 'requirements.txt'
 
-      - name: 🟢 Configurar Node.js (para pyright)
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: 📦 Instalar dependencias Python
+      - name:  Instalar dependencias Python
         run: |
           python -m pip install --upgrade pip setuptools wheel
           if [ -f requirements.txt ]; then
             pip install -r requirements.txt
           fi
-          pip install pytest ruff  # pyright se instala vía npm
+          # Herramientas de calidad de código (siempre instalar)
+          pip install pytest ruff pyright
 
-      - name: 📦 Instalar pyright vía npm
-        run: npm install -g pyright@latest
-
-      - name: 🔍 Lint con Ruff (non-blocking para warnings)
+      - name:  Lint con Ruff (non-blocking para warnings)
         run: |
           if [ -d "frontend" ]; then
             python -m ruff check frontend/ --exit-zero \
-              || echo "⚠️ Ruff encontró warnings (no bloqueantes en CI)"
+              || echo " Ruff encontró warnings (no bloqueantes en CI)"
           else
-            echo "⚠️ Directorio frontend/ no encontrado, skipping lint"
+            echo " Directorio frontend/ no encontrado, skipping lint"
           fi
 
-      - name: 🔎 Type check con Pyright
+      - name:  Type check con Pyright
         run: |
           if [ -d "frontend" ]; then
-            pyright frontend/ --skipunannotated \
-              || echo "⚠️ Pyright encontró issues de tipado (no bloqueantes en CI)"
+            python -m pyright frontend/ --skipunannotated \
+              || echo " Pyright encontró issues de tipado (no bloqueantes en CI)"
           else
-            echo "⚠️ Directorio frontend/ no encontrado, skipping type check"
+            echo " Directorio frontend/ no encontrado, skipping type check"
           fi
 
-      - name: 🧪 Ejecutar tests de Python
+      - name:  Ejecutar tests de Python
         run: |
           if [ -d "frontend/tests" ] && [ "$(ls -A frontend/tests 2>/dev/null)" ]; then
             python -m pytest frontend/tests/ \
@@ -156,9 +148,18 @@ jobs:
               --maxfail=3 \
               --disable-warnings
           else
-            echo "⚠️ No hay tests en frontend/tests/, skipping pytest"
+            echo " No hay tests en frontend/tests/, skipping pytest"
             exit 0
           fi
+
+      - name:  Subir reporte de cobertura (opcional)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-test-results
+          path: frontend/.pytest_cache/
+          retention-days: 7
+          if-no-files-found: ignore
 
   # =============================================================================
   # JOB 3: Construir y Publicar Imagen Docker (SOLO en releases)
