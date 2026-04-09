@@ -293,29 +293,73 @@ jobs:
   # JOB 5: Notificar a Discord (opcional pero útil)
   # =============================================================================
   notify-discord:
-    name:  Discord Notification
-    runs-on: ubuntu-24.04
+    name: 💬 Discord Notification
+    runs-on: ubuntu-latest
     needs: [ test-backend, test-frontend, build-docker, report-status ]
-    if: always()  # Ejecutar siempre, incluso si algún job falló
+    if: always()
     steps:
-      - name:  Enviar notificación a Discord
-        uses: Ilshidur/action-discord@master
+      - name: 💬 Enviar notificación a Discord
         env:
-          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        with:
-          args: |
-            **HESTIA CI — Reporte de Estado**
-            ```
-            🔹 Commit: ${{ github.sha }}
-            🔹 Branch: ${{ github.ref_name }}
-            🔹 Trigger: ${{ github.event_name }}
-            🔹 Actor: ${{ github.actor }}
-            ```
-            **Jobs:**
-            -  Backend C++20: ${{ needs.test-backend.result }}
-            -  Frontend Python: ${{ needs.test-frontend.result }}
-            -  Docker: ${{ needs.build-docker.result == 'skipped' && ' Skipped' || needs.build-docker.result }}
-            
-            **Enlaces:**
-             [Ver workflow](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
-             [Ver cambios](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
+          WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK }}
+        run: |
+          # 1. Verificar que el secret existe y no está vacío
+          if [ -z "$WEBHOOK_URL" ]; then
+            echo "❌ ERROR: El secret DISCORD_WEBHOOK no está configurado o está vacío"
+            echo "Ve a Settings → Secrets and variables → Actions y crea DISCORD_WEBHOOK"
+            exit 1
+          fi
+          
+          # 2. Determinar estado y color del embed
+          if [ "${{ needs.test-backend.result }}" = "success" ] && [ "${{ needs.test-frontend.result }}" = "success" ]; then
+            STATUS="✅ CI Passed"
+            COLOR=3066993  # Verde
+          else
+            STATUS="❌ CI Failed"
+            COLOR=15158332 # Rojo
+          fi
+          
+          # 3. Construir payload JSON
+          PAYLOAD=$(cat <<EOF
+          {
+            "content": "**HESTIA CI — $STATUS**",
+            "embeds": [{
+              "title": "$STATUS",
+              "description": "Repositorio: NobelC/HESTIA",
+              "color": $COLOR,
+              "fields": [
+                {"name": "🔹 Commit", "value": "${{ github.sha }}", "inline": true},
+                {"name": "🔹 Branch", "value": "${{ github.ref_name }}", "inline": true},
+                {"name": "🧠 Backend", "value": "${{ needs.test-backend.result }}", "inline": true},
+                {"name": "🎨 Frontend", "value": "${{ needs.test-frontend.result }}", "inline": true}
+              ],
+              "footer": {"text": "HESTIA · JIC 2026 · UTP Veraguas"},
+              "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+            }]
+          }
+          EOF
+          )
+          
+          # 4. Enviar con curl y capturar respuesta
+          echo "📤 Enviando webhook a Discord..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" -X POST \
+            -H "Content-Type: application/json" \
+            -d "$PAYLOAD" \
+            "$WEBHOOK_URL")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          # 5. Interpretar respuesta
+          if [ "$HTTP_CODE" = "204" ] || [ "$HTTP_CODE" = "200" ]; then
+            echo "✅ Notificación enviada exitosamente (HTTP $HTTP_CODE)"
+          else
+            echo "❌ Error al enviar notificación"
+            echo "   HTTP Code: $HTTP_CODE"
+            echo "   Response: $BODY"
+            echo ""
+            echo "Posibles causas:"
+            echo "  • Webhook URL inválida o expirada"
+            echo "  • El canal de Discord fue eliminado"
+            echo "  • El secret DISCORD_WEBHOOK está mal configurado"
+            exit 1
+          fi
