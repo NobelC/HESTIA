@@ -288,3 +288,34 @@ jobs:
           echo "**Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** \`${{ github.ref_name }}\`" >> $GITHUB_STEP_SUMMARY
           echo "**Trigger:** \`${{ github.event_name }}\`" >> $GITHUB_STEP_SUMMARY
+
+    # =============================================================================
+  # JOB 5: Notificar a Discord (opcional pero útil)
+  # =============================================================================
+  notify-discord:
+    name:  Discord Notification
+    runs-on: ubuntu-24.04
+    needs: [ test-backend, test-frontend, build-docker, report-status ]
+    if: always()  # Ejecutar siempre, incluso si algún job falló
+    steps:
+      - name:  Enviar notificación a Discord
+        uses: Ilshidur/action-discord@master
+        env:
+          DISCORD_WEBHOOK: ${{ secrets.DISCORD_WEBHOOK_URL }}
+        with:
+          args: |
+            **HESTIA CI — Reporte de Estado**
+            ```
+            🔹 Commit: ${{ github.sha }}
+            🔹 Branch: ${{ github.ref_name }}
+            🔹 Trigger: ${{ github.event_name }}
+            🔹 Actor: ${{ github.actor }}
+            ```
+            **Jobs:**
+            -  Backend C++20: ${{ needs.test-backend.result }}
+            -  Frontend Python: ${{ needs.test-frontend.result }}
+            -  Docker: ${{ needs.build-docker.result == 'skipped' && ' Skipped' || needs.build-docker.result }}
+            
+            **Enlaces:**
+             [Ver workflow](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+             [Ver cambios](https://github.com/${{ github.repository }}/commit/${{ github.sha }})
