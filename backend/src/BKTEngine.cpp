@@ -3,11 +3,12 @@
 #include <cmath>
 
 namespace hestia::bkt {
-    void updateTransitionDecay(SkillState& state, double lambda) noexcept{
+  void BKTEngine::updateTransitionDecay(SkillState& state, double lambda) noexcept{
       std::chrono::duration<double> duration = std::chrono::system_clock::now() - state.session_start_time; 
       using minute_double_cast = std::chrono::duration<double, std::ratio<60>>;
       double minutes_total = std::chrono::duration_cast<minute_double_cast>(duration).count();
       state.m_pTransition = state.m_pTransition * std::exp((-lambda) * minutes_total);
+      state.validationProbabilityRanges();
     } 
 
     constexpr double calculatePosterior(const SkillState& state, bool is_correct) noexcept {
@@ -73,7 +74,7 @@ namespace hestia::bkt {
     //======================================================================================================================
     //======================================================================================================================
 
-    void updateKnowledge(SkillState& state, bool is_correct, double response_time_ms, double lambda) noexcept {
+    void BKTEngine::updateKnowledge(SkillState& state, bool is_correct, double response_time_ms, double lambda) noexcept {
       state.total_attempts++;
 
       if(state.isColdStart()){
@@ -111,7 +112,7 @@ namespace hestia::bkt {
       state.validationProbabilityRanges();
     }
 
-    void applyForgetFactor(SkillState& state) noexcept{
+    void BKTEngine::applyForgetFactor(SkillState& state) noexcept{
       if(state.exceedsForgetThreshold()){
         state.m_pLearn_operative = (state.m_pLearn_operative * (1 - state.m_pForget)) + 
           ((1 - state.m_pLearn_operative) * state.m_pTransition);
