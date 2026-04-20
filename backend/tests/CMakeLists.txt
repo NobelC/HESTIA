@@ -6,6 +6,8 @@ add_executable(hestia_tests
     test_SRSQueue.cpp
     test_ZoneBlender.cpp
     test_PersistenceLayer.cpp
+    test_SkillGraph.cpp
+    test_SessionManager.cpp
 )
 
 target_link_libraries(hestia_tests 
