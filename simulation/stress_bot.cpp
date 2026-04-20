@@ -4,21 +4,47 @@
 #include <random>
 #include <filesystem>
 #include <fstream>
+#include <sqlite3.h>
 #include "../backend/include/ResponseProcessor.hpp"
-#include "../backend/include/PersistenceLayer.hpp"
-#include "../backend/include/MABEngine.hpp"
-#include "../backend/include/BKTEngine.hpp"
-#include "../backend/include/SessionManager.hpp"
-#include "../backend/include/ZoneBlender.hpp"
-#include "../backend/include/SkillGraph.hpp"
-#include "../backend/include/SRSQueue.hpp"
 
 using namespace hestia;
 
 /**
  * Stress Bot for HESTIA
- * Simulates 7 real scenarios to validate engine robustness.
+ * Simulates 7 real scenarios to validate system behavior under different usage patterns.
  */
+
+// Helper para inicializar la DB con el schema antes de PersistenceLayer::create
+void initialize_schema(const std::string& path) {
+    sqlite3* db;
+    if (sqlite3_open(path.c_str(), &db) != SQLITE_OK) return;
+
+    const char* schema = R"(
+        PRAGMA user_version = 1;
+        CREATE TABLE IF NOT EXISTS skill_state (
+            student_id INTEGER NOT NULL, skill_id INTEGER NOT NULL,
+            p_learn_operative REAL NOT NULL, p_learn_theorical REAL NOT NULL,
+            p_transition REAL NOT NULL, p_slip REAL NOT NULL,
+            p_guess REAL NOT NULL, p_forget REAL NOT NULL,
+            avg_response_time REAL NOT NULL, last_practice_time INTEGER NOT NULL,
+            PRIMARY KEY (student_id, skill_id)
+        ) WITHOUT ROWID;
+        CREATE TABLE IF NOT EXISTS method_state (
+            student_id INTEGER NOT NULL, skill_id INTEGER NOT NULL,
+            method_id INTEGER NOT NULL, attempts INTEGER NOT NULL DEFAULT 0,
+            successes INTEGER NOT NULL DEFAULT 0,
+            PRIMARY KEY (student_id, skill_id, method_id)
+        ) WITHOUT ROWID;
+        CREATE TABLE IF NOT EXISTS response_log (
+            log_id INTEGER PRIMARY KEY, student_id INTEGER NOT NULL,
+            skill_id INTEGER NOT NULL, method_id INTEGER NOT NULL,
+            timestamp INTEGER NOT NULL, is_correct INTEGER NOT NULL,
+            response_ms INTEGER NOT NULL
+        );
+    )";
+    sqlite3_exec(db, schema, nullptr, nullptr, nullptr);
+    sqlite3_close(db);
+}
 
 void run_scenario(core::ResponseProcessor& processor, const std::string& name, int iterations, int student_id, int skill_id) {
     std::cout << "\n>>> Running Scenario: " << name << " <<<" << std::endl;
@@ -84,6 +110,7 @@ int main() {
     }
 
     if (std::filesystem::exists(db_path)) std::filesystem::remove(db_path);
+    initialize_schema(db_path);
     
     auto storage = persistence::PersistenceLayer::create(db_path);
     bkt::BKTEngine bkt;

@@ -24,7 +24,8 @@ PYBIND11_MODULE(hestia_core, m) {
         .def_readwrite("total_attempts", &bkt::SkillState::total_attempts)
         .def_readwrite("session_count", &bkt::SkillState::session_count)
         .def_readwrite("consecutive_correct", &bkt::SkillState::consecutive_correct)
-        .def_readwrite("consecutive_error", &bkt::SkillState::consecutive_error);
+        .def_readwrite("consecutive_error", &bkt::SkillState::consecutive_error)
+        .def_readwrite("is_initialized", &bkt::SkillState::is_initialized);
 
     py::class_<bkt::BKTEngine>(m_bkt, "BKTEngine")
         .def(py::init<>());

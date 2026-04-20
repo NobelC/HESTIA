@@ -2,10 +2,10 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 import sys
 import os
-from bridge.hestia_bridge import get_bridge, METHOD
-
 # Asegurar que el bridge sea importable
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+from bridge.hestia_bridge import get_bridge, METHOD
 
 class HestiaApp:
     def __init__(self, root):

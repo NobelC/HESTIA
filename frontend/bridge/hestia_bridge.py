@@ -3,10 +3,11 @@ import os
 import glob
 from typing import List, Optional, Any
 
-# --- Configuración del Path para encontrar el módulo C++ ---
+# --- Configuración de Rutas del Proyecto ---
 CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
-# Buscar en build/backend por defecto si no está instalado
-SEARCH_PATH = os.path.join(CURRENT_DIR, "../../build/backend")
+PROJECT_ROOT = os.path.abspath(os.path.join(CURRENT_DIR, "../../"))
+# Buscar el módulo C++ en build/backend
+SEARCH_PATH = os.path.join(PROJECT_ROOT, "build/backend")
 
 if SEARCH_PATH not in sys.path:
     sys.path.append(SEARCH_PATH)
@@ -14,11 +15,10 @@ if SEARCH_PATH not in sys.path:
 try:
     import hestia_core
 except ImportError as e:
-    # Intento fallback si el nombre del archivo tiene sufijos de plataforma
     potential_so = glob.glob(os.path.join(SEARCH_PATH, "hestia_core*.so"))
     if not potential_so:
         raise ImportError(
-            f"No se pudo encontrar 'hestia_core'. "
+            f"No se pudo encontrar 'hestia_core' en {SEARCH_PATH}. "
             f"Asegúrate de haber ejecutado './scripts/build.sh'. Error original: {e}"
         )
     import hestia_core
@@ -40,9 +40,13 @@ class HestiaBridge:
             cls._instance._initialized = False
         return cls._instance
 
-    def __init__(self, db_path: str = "hestia.db", skill_graph_path: str = "data/skill_graph.json"):
+    def __init__(self, db_path: str = "hestia.db", skill_graph_path: Optional[str] = None):
         if self._initialized:
             return
+        
+        # Resolver path del grafo si no se provee
+        if skill_graph_path is None:
+            skill_graph_path = os.path.join(PROJECT_ROOT, "data/skill_graph.json")
         
         # 1. Inicializar componentes del motor
         self.bkt_engine = hestia_core.bkt.BKTEngine()
