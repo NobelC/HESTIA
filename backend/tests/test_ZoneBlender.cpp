@@ -3,7 +3,7 @@
 
 using namespace hestia::zone;
 using namespace hestia::bkt;
-using namespace hestia::mab;
+using namespace hestia::graph;
 
 TEST_CASE("ZoneBlender: Selección de zona según P(L)", "[zone]") {
 
@@ -71,20 +71,17 @@ TEST_CASE("ZoneBlender: Selección de zona según P(L)", "[zone]") {
         REQUIRE(ratio < 0.27);
     }
 
-    SECTION("Combina BKT + MAB: selectExercise retorna resultado válido") {
+    SECTION("Combina BKT + Graph: selectExercise retorna resultado válido") {
         SkillState state;
         state.m_pLearn_operative = 0.50;
 
-        MABEngine mab(1.0);
+        SkillGraph graph; // Graph vacío
         ZoneBlender test_blender(11111);
 
-        auto selection = test_blender.selectExercise(5, state, mab);
+        auto selection = test_blender.selectExercise(5, state, graph);
 
         // Verificar que el resultado tiene valores válidos
         REQUIRE(selection.skill_id == 5);
         REQUIRE((selection.zone == Zone::LOW || selection.zone == Zone::CURRENT));
-        // El método debe ser uno de los 5 válidos (0-4)
-        REQUIRE(static_cast<int>(selection.method) >= 0);
-        REQUIRE(static_cast<int>(selection.method) <= 4);
     }
 }

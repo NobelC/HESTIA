@@ -30,7 +30,7 @@ ResponseResult ResponseProcessor::processResponse(
 {
     // 0. Validar que el skill_id existe en el grafo
     if (!m_skill_graph.exists(skill_id)) {
-        return {mab::METHOD::VISUAL, zone::Zone::CURRENT, 0.0, false, false, false};
+        return {skill_id, mab::METHOD::VISUAL, zone::Zone::CURRENT, 0.0, false, false, false};
     }
 
     // 1. Cargar estado desde persistencia (o usar default si no existe)
@@ -56,10 +56,7 @@ ResponseResult ResponseProcessor::processResponse(
     // 5. Actualizar cola SRS con el resultado
     m_srs_queue.markResult(skill_id, correct);
 
-    // 6. Seleccionar siguiente ejercicio (zona + método)
-    auto selection = m_blender.selectExercise(skill_id, state, m_mab, &m_srs_queue);
-
-    // 7. Persistir el estado actualizado
+    // 6. Persistir el estado actualizado (antes de recargar el MAB para la siguiente skill)
     const auto& ms = m_mab.getMethodState(used_method);
     [[maybe_unused]] auto save_result = m_storage.saveInteraction(
         student_id, skill_id, state, used_method, correct,
@@ -67,9 +64,18 @@ ResponseResult ResponseProcessor::processResponse(
         ms.count_attempts,
         ms.successes);
 
-    // 8. Retornar resultado
+    // 7. Seleccionar siguiente ejercicio (zona y skill_id)
+    auto selection = m_blender.selectExercise(skill_id, state, m_skill_graph, &m_srs_queue);
+
+    // 8. Cargar el MAB para la *nueva* skill y elegir método
+    auto next_mab_states = m_storage.loadMethodStates(student_id, selection.skill_id);
+    m_mab.loadFrom(next_mab_states);
+    mab::METHOD next_method = m_mab.selectMethod();
+
+    // 9. Retornar resultado
     return {
-        selection.method,
+        selection.skill_id,
+        next_method,
         selection.zone,
         state.m_pLearn_operative,
         anomalous,

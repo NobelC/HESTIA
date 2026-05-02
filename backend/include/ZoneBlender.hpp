@@ -1,6 +1,6 @@
 #pragma once
 #include "BKTEngine.hpp"
-#include "MABEngine.hpp"
+#include "SkillGraph.hpp"
 #include "SRSQueue.hpp"
 #include <random>
 #include <cstdint>
@@ -11,7 +11,6 @@ enum class Zone : uint8_t { LOW = 0, CURRENT = 1 };
 
 struct ExerciseSelection {
     Zone zone;
-    mab::METHOD method;
     int skill_id;
 };
 
@@ -24,11 +23,10 @@ public:
     /// Selecciona la zona basándose en P(L) operativo del estado
     [[nodiscard]] Zone selectZone(const bkt::SkillState& state);
 
-    /// Selección completa: zona + método MAB
     [[nodiscard]] ExerciseSelection selectExercise(
         int skill_id,
         const bkt::SkillState& state,
-        mab::MABEngine& mab_engine,
+        const graph::SkillGraph& skill_graph,
         srs::SRSQueue* srs_queue = nullptr);
 
 private:

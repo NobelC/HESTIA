@@ -19,6 +19,7 @@ struct SessionReport {
 };
 
 struct ResponseResult {
+    int next_skill_id;
     mab::METHOD next_method;
     zone::Zone next_zone;
     double current_pL;
