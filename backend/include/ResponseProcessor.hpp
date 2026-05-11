@@ -23,6 +23,7 @@ struct ResponseResult {
     mab::METHOD next_method;
     zone::Zone next_zone;
     double current_pL;
+    double current_pL_theorical;
     bool was_anomalous;   // true si el tiempo fue filtrado por SessionManager
     bool valid_skill;     // false si skill_id no existe en el grafo
     bool newly_mastered;  // true si P(L) teórico dominó al operativo

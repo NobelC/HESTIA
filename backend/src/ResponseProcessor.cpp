@@ -30,7 +30,7 @@ ResponseResult ResponseProcessor::processResponse(
 {
     // 0. Validar que el skill_id existe en el grafo
     if (!m_skill_graph.exists(skill_id)) {
-        return {skill_id, mab::METHOD::VISUAL, zone::Zone::CURRENT, 0.0, false, false, false};
+        return {skill_id, mab::METHOD::VISUAL, zone::Zone::CURRENT, 0.0, 0.0, false, false, false};
     }
 
     // 1. Cargar estado desde persistencia (o usar default si no existe)
@@ -78,6 +78,7 @@ ResponseResult ResponseProcessor::processResponse(
         next_method,
         selection.zone,
         state.m_pLearn_operative,
+        state.m_pLearn_theorical,
         anomalous,
         true,
         state.is_mastered

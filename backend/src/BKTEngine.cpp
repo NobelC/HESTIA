@@ -122,7 +122,9 @@ namespace hestia::bkt {
       }
 
       // Anti-stall logic: si el P(L) teórico supera consistentemente al operativo
-      if (state.m_pLearn_theorical > (state.m_pLearn_operative + ANTI_STALL_MARGIN)) {
+      // Guard: only consider anti-stall when theoretical is meaningfully high
+      if (state.m_pLearn_theorical > (state.m_pLearn_operative + ANTI_STALL_MARGIN) &&
+          state.m_pLearn_theorical >= ANTI_STALL_MIN_THEORICAL) {
           state.m_sustained_theorical_dominance++;
           
           if (state.m_sustained_theorical_dominance >= ANTI_STALL_THRESHOLD) {

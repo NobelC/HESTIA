@@ -21,7 +21,7 @@ echo "Configuring with CMake..."
 cmake .. -DBUILD_TESTS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
 
 echo "Building..."
-make -j$(nproc)
+cmake --build . --parallel $(nproc)
 
 echo "Build complete!"
 echo "Binaries available in ${BUILD_DIR}/backend"

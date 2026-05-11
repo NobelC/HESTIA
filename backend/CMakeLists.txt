@@ -25,7 +25,7 @@ set_target_properties(hestia_backend PROPERTIES POSITION_INDEPENDENT_CODE ON)
 
 # Enlazar SQLite si usas PersistenceLayer (necesario en Linux)
 find_package(SQLite3 REQUIRED)
-target_link_libraries(hestia_backend PRIVATE SQLite::SQLite3 nlohmann_json::nlohmann_json)
+target_link_libraries(hestia_backend PRIVATE SQLite3::SQLite3 nlohmann_json::nlohmann_json)
 
 # Tests: Si BUILD_TESTS es ON, entra al directorio de tests
 if(BUILD_TESTS)

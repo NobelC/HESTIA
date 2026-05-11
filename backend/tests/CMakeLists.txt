@@ -2,6 +2,7 @@
 
 add_executable(hestia_tests 
     test_BKTEngine.cpp
+    test_BKTEngine_calibration.cpp
     test_MABEngine.cpp
     test_SRSQueue.cpp
     test_ZoneBlender.cpp

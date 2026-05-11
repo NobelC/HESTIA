@@ -1,0 +1,47 @@
+<svg width="800" height="400" xmlns="http://www.w3.org/2000/svg" style="background-color: white; font-family: sans-serif;">
+<text x="400.0" y="30" text-anchor="middle" font-size="16" font-weight="bold">HESTIA BKT Learning Curve: Perfect Learner</text>
+<rect x="50" y="50" width="700" height="300" fill="none" stroke="#ddd" />
+<line x1="50" y1="350.0" x2="750" y2="350.0" stroke="#eee" />
+<text x="40" y="354.0" text-anchor="end" font-size="10">0.0</text>
+<line x1="50" y1="290.0" x2="750" y2="290.0" stroke="#eee" />
+<text x="40" y="294.0" text-anchor="end" font-size="10">0.2</text>
+<line x1="50" y1="230.0" x2="750" y2="230.0" stroke="#eee" />
+<text x="40" y="234.0" text-anchor="end" font-size="10">0.4</text>
+<line x1="50" y1="170.0" x2="750" y2="170.0" stroke="#eee" />
+<text x="40" y="174.0" text-anchor="end" font-size="10">0.6</text>
+<line x1="50" y1="110.0" x2="750" y2="110.0" stroke="#eee" />
+<text x="40" y="114.0" text-anchor="end" font-size="10">0.8</text>
+<line x1="50" y1="50.0" x2="750" y2="50.0" stroke="#eee" />
+<text x="40" y="54.0" text-anchor="end" font-size="10">1.0</text>
+<line x1="50" y1="56.0" x2="750" y2="56.0" stroke="grey" stroke-dasharray="5,5" />
+<text x="755" y="60.0" font-size="10" fill="grey">0.98 (Cap)</text>
+<line x1="50" y1="80.0" x2="750" y2="80.0" stroke="green" stroke-dasharray="5,5" />
+<text x="755" y="84.0" font-size="10" fill="green">0.90 (Mastery)</text>
+<polyline points="50.0,350.0 86.84210526315789,350.0 123.68421052631578,350.0 160.5263157894737,350.0 197.36842105263156,350.0 234.21052631578945,350.0 271.0526315789474,350.0 307.89473684210526,350.0 344.7368421052631,350.0 381.57894736842104,350.0 418.4210526315789,350.0 455.2631578947369,350.0 492.10526315789474,350.0 528.9473684210527,350.0 565.7894736842105,350.0 602.6315789473684,350.0 639.4736842105262,350.0 676.3157894736842,350.0 713.1578947368421,350.0 750.0,350.0" fill="none" stroke="red" stroke-width="2" stroke-dasharray="4,4" opacity="0.7" />
+<polyline points="50.0,350.0 86.84210526315789,350.0 123.68421052631578,350.0 160.5263157894737,350.0 197.36842105263156,350.0 234.21052631578945,350.0 271.0526315789474,350.0 307.89473684210526,350.0 344.7368421052631,350.0 381.57894736842104,350.0 418.4210526315789,350.0 455.2631578947369,350.0 492.10526315789474,350.0 528.9473684210527,350.0 565.7894736842105,350.0 602.6315789473684,350.0 639.4736842105262,350.0 676.3157894736842,350.0 713.1578947368421,350.0 750.0,350.0" fill="none" stroke="blue" stroke-width="2" />
+<circle cx="50.0" cy="350.0" r="3" fill="blue" />
+<circle cx="86.84210526315789" cy="350.0" r="3" fill="blue" />
+<circle cx="123.68421052631578" cy="350.0" r="3" fill="blue" />
+<circle cx="160.5263157894737" cy="350.0" r="3" fill="blue" />
+<circle cx="197.36842105263156" cy="350.0" r="3" fill="blue" />
+<circle cx="234.21052631578945" cy="350.0" r="3" fill="blue" />
+<circle cx="271.0526315789474" cy="350.0" r="3" fill="blue" />
+<circle cx="307.89473684210526" cy="350.0" r="3" fill="blue" />
+<circle cx="344.7368421052631" cy="350.0" r="3" fill="blue" />
+<circle cx="381.57894736842104" cy="350.0" r="3" fill="blue" />
+<circle cx="418.4210526315789" cy="350.0" r="3" fill="blue" />
+<circle cx="455.2631578947369" cy="350.0" r="3" fill="blue" />
+<circle cx="492.10526315789474" cy="350.0" r="3" fill="blue" />
+<circle cx="528.9473684210527" cy="350.0" r="3" fill="blue" />
+<circle cx="565.7894736842105" cy="350.0" r="3" fill="blue" />
+<circle cx="602.6315789473684" cy="350.0" r="3" fill="blue" />
+<circle cx="639.4736842105262" cy="350.0" r="3" fill="blue" />
+<circle cx="676.3157894736842" cy="350.0" r="3" fill="blue" />
+<circle cx="713.1578947368421" cy="350.0" r="3" fill="blue" />
+<circle cx="750.0" cy="350.0" r="3" fill="blue" />
+<rect x="60" y="60" width="140" height="40" fill="white" stroke="#ccc" />
+<line x1="65" y1="70" x2="85" y2="70" stroke="blue" stroke-width="2" />
+<text x="90" y="74" font-size="10">Operative P(L)</text>
+<line x1="65" y1="90" x2="85" y2="90" stroke="red" stroke-width="2" stroke-dasharray="4,4" />
+<text x="90" y="94" font-size="10">Theoretical P(L)</text>
+</svg>

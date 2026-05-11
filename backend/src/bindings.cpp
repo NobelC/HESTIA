@@ -112,6 +112,7 @@ PYBIND11_MODULE(hestia_core, m) {
         .def_readonly("next_method", &core::ResponseResult::next_method)
         .def_readonly("next_zone", &core::ResponseResult::next_zone)
         .def_readonly("current_pL", &core::ResponseResult::current_pL)
+        .def_readonly("current_pL_theorical", &core::ResponseResult::current_pL_theorical)
         .def_readonly("was_anomalous", &core::ResponseResult::was_anomalous)
         .def_readonly("valid_skill", &core::ResponseResult::valid_skill);
 

@@ -14,12 +14,13 @@ constexpr double P_TRANSITION_FLOOR = 0.05;
 
 constexpr double DEFAULT_P_LEARN = 0.20;
 constexpr double DEFAULT_P_TRANSITION = 0.10;
-constexpr double DEFAULT_P_GUESS = 0.05;
-constexpr double DEFAULT_P_SLIP = 0.05;
+constexpr double DEFAULT_P_GUESS = 0.25;
+constexpr double DEFAULT_P_SLIP = 0.10;
 constexpr double DEFAULT_P_FORGET = 0.50;
 
 constexpr uint32_t ANTI_STALL_THRESHOLD = 3;
-constexpr double ANTI_STALL_MARGIN = 0.05;
+constexpr double ANTI_STALL_MARGIN = 0.15;
+constexpr double ANTI_STALL_MIN_THEORICAL = 0.70;  // Minimum theoretical P(L) for anti-stall activation
 
 struct SkillState {
     // Pesos del modulo BKT+
@@ -64,7 +65,7 @@ struct SkillState {
     void validationProbabilityRanges() noexcept {
         m_pLearn_operative =
             std::clamp(m_pLearn_operative, MIN_P_LEARN_OPERATIVE, MAX_P_LEARN_OPERATIVE);
-        m_pLearn_theorical = std::clamp(m_pLearn_theorical, MIN_P_LEARN_OPERATIVE, 1.0);
+        m_pLearn_theorical = std::clamp(m_pLearn_theorical, MIN_P_LEARN_OPERATIVE, MAX_P_LEARN_OPERATIVE);
         m_pForget = std::clamp(m_pForget, 0.01, 0.99);
         m_pGuess = std::clamp(m_pGuess, 0.01, 0.99);
         m_pSlip = std::clamp(m_pSlip, 0.01, 0.99);
