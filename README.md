@@ -1,57 +1,58 @@
-#  HESTIA — Sistema de Tutoría Inteligente Adaptativa
+## HESTIA — Adaptive Intelligent Tutoring System
 
-> **Versión:** 1.0
+> **Version:** 1.0
 
-HESTIA es un motor de tutoría inteligente diseñado para enseñar alfabetización básica y matemáticas elementales a niños con discapacidad intelectual secundaria a condiciones neurológicas. 
+HESTIA is an intelligent tutoring engine designed to teach basic literacy and elementary mathematics to children with intellectual disabilities secondary to neurological conditions. 
 
-**No reemplaza al docente — es su aliado inteligente.**
-
----
-
-##  Propuesta de Valor Única
-
-HESTIA opera en **dos dimensiones de adaptación simultáneas**, algo que ninguna herramienta educativa existente hace para esta población:
-
-| Dimensión | Pregunta que responde | Motor responsable |
-|-----------|----------------------|------------------|
-| **Dominio** | ¿Cuánto domina el niño esta habilidad? | BKT Extendido (5 parámetros) |
-| **Metodología** | ¿Cómo aprende mejor este niño? | Multi-Armed Bandit (UCB) |
+**It does not replace the teacher — it is their intelligent ally.**
 
 ---
 
-##  Alcance del Prototipo
+## Unique Value Proposition
 
-###  DENTRO del scope
-- Motor BKT Extendido con 5 extensiones (olvido, techo, fatiga, tiempo de respuesta, anti-stall)
-- Motor MAB/UCB para selección de método pedagógico (Visual, Auditivo, Kinestésico, Fonético, Global)
-- Persistencia local con SQLite (sin servidor, sin riesgo de filtración)
-- Interfaz desktop funcional con Python + TKinter
-- Alfabetizacion y matematica/logica basica
-- Simulador Monte Carlo + Bot de estrés para validación teórica
-- Reporte de sesión al docente
+HESTIA operates on **two simultaneous dimensions of adaptation**, a capability unmatched by existing educational tools for this population:
 
-###  FUERA del scope
-- Reconocimiento de voz o escritura a mano
-- Aplicación móvil o web
-- Panel multi-usuario en red
-- Currículo completo de primaria
-- Diagnóstico clínico automatizado
-- Comunicación con servidores externos
+| Dimension | Question It Answers | Engine Responsible |
+|-----------|---------------------|--------------------|
+| **Domain** | How well does the child master this skill? | Extended BKT (5 parameters) |
+| **Methodology** | How does this child learn best? | Multi-Armed Bandit (UCB) |
 
 ---
 
-##  Stack Tecnológico
+## Prototype Scope
 
-| Capa | Tecnología | Justificación |
+### IN Scope
+- Extended BKT engine with 5 extensions (forgetting, ceiling, fatigue, response time, anti-stall)
+- MAB/UCB engine for pedagogical method selection (Visual, Auditory, Kinesthetic, Phonetic, Global)
+- Local persistence with SQLite (serverless, zero leakage risk)
+- Functional desktop interface using Python + Tkinter
+- Basic literacy and elementary math/logic
+- Monte Carlo simulator + Stress bot for theoretical validation
+- Session report generation for the teacher
+
+### OUT of Scope
+- Speech or handwriting recognition
+- Mobile or web application
+- Networked multi-user dashboard
+- Full elementary school curriculum
+- Automated clinical diagnosis
+- External server communication
+
+---
+
+## Technological Stack
+
+| Layer | Technology | Justification |
 |------|-----------|--------------|
-| **Motor IA** | C++20 | O(1) por update, vectorización SIMD, escalabilidad |
-| **Persistencia** | SQLite (C++) | Sin servidor, archivo local, acceso exclusivo desde C++ |
-| **Bridge** | pybind11 | Expone C++ a Python como módulo nativo, cero overhead |
-| **Frontend** | Python + TKinter | Stack conocido, desktop-first, sin dependencias externas |
-| **Datos** | JSON | Ejercicios y grafo editables sin tocar código |
-| **Build** | CMake + Catch2 | Reproducible en las 3 máquinas del equipo |
-| **Simulación** | Python (scripts externos) | Monte Carlo y bot de estrés fuera del sistema principal |
+| **AI Engine** | C++20 | O(1) per update, SIMD vectorization, scalability |
+| **Persistence** | SQLite (C++) | Serverless, local file, exclusive access from C++ |
+| **Bridge** | pybind11 | Exposes C++ to Python as a native module, zero overhead |
+| **Frontend** | Python + Tkinter | Well-known stack, desktop-first, no external dependencies |
+| **Data** | JSON | Exercises and graph structure editable without modifying code |
+| **Build** | CMake + Catch2 | Reproducible across all 3 development machines |
+| **Simulation** | Python (external scripts) | Monte Carlo and stress bot kept outside the main system |
 
 ---
-##  Licencia
+
+## License
 **GNU Affero General Public License v3.0 (AGPL-3.0)**.
