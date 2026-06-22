@@ -1,0 +1,170 @@
+{
+  "topic": "Vocales",
+  "level": "basico",
+  "methods_supported": [
+    "M1_visual",
+    "M4_fonetico"
+  ],
+  "exercises": [
+    {
+      "id": "ex_vocal_a_001",
+      "skill_id": "vocal_a",
+      "method_id": "M1_visual",
+      "question": "¿Cuál es la vocal A?",
+      "options": [
+        "A",
+        "E",
+        "I",
+        "O"
+      ],
+      "correct_answer": "A",
+      "feedback_correct": "Muy bien. Esa es la vocal A.",
+      "feedback_incorrect": "Inténtalo de nuevo. Observa bien la forma de la letra."
+    },
+    {
+      "id": "ex_vocal_a_002",
+      "skill_id": "vocal_a",
+      "method_id": "M4_fonetico",
+      "question": "Escucha el audio y responde: ¿Qué vocal suena como: ?",
+      "options": [
+        "A",
+        "E",
+        "I",
+        "U"
+      ],
+      "correct_answer": "A",
+      "audio_text": "aaaa",
+      "feedback_correct": "Correcto. La vocal A suena como 'aaaa'.",
+      "feedback_incorrect": "Escucha mentalmente el sonido y vuelve a intentarlo.",
+      "audio_path": "assets/audio/a.wav"
+    },
+    {
+      "id": "ex_vocal_e_001",
+      "skill_id": "vocal_e",
+      "method_id": "M1_visual",
+      "question": "¿Cuál es la vocal E?",
+      "options": [
+        "A",
+        "E",
+        "I",
+        "O"
+      ],
+      "correct_answer": "E",
+      "feedback_correct": "Muy bien. Esa es la vocal E.",
+      "feedback_incorrect": "Inténtalo de nuevo. Observa bien la forma de la letra."
+    },
+    {
+      "id": "ex_vocal_e_002",
+      "skill_id": "vocal_e",
+      "method_id": "M4_fonetico",
+      "question": "Escucha el audio y responde: ¿Qué vocal suena como: ?",
+      "options": [
+        "A",
+        "E",
+        "I",
+        "U"
+      ],
+      "correct_answer": "E",
+      "audio_text": "eeee",
+      "feedback_correct": "Correcto. La vocal E suena como:'eeee' .",
+      "feedback_incorrect": "Escucha mentalmente el sonido y vuelve a intentarlo.",
+      "audio_path": "assets/audio/e.wav"
+    },
+    {
+      "id": "ex_vocal_i_001",
+      "skill_id": "vocal_i",
+      "method_id": "M1_visual",
+      "question": "¿Cuál es la vocal I?",
+      "options": [
+        "A",
+        "E",
+        "I",
+        "O"
+      ],
+      "correct_answer": "I",
+      "feedback_correct": "Muy bien. Esa es la vocal I.",
+      "feedback_incorrect": "Inténtalo de nuevo. Observa bien la forma de la letra."
+    },
+    {
+      "id": "ex_vocal_i_002",
+      "skill_id": "vocal_i",
+      "method_id": "M4_fonetico",
+      "question": "Escucha el audio y responde: ¿Qué vocal suena como: ?",
+      "options": [
+        "A",
+        "E",
+        "I",
+        "U"
+      ],
+      "correct_answer": "I",
+      "audio_text": "iiii",
+      "feedback_correct": "Correcto. La vocal I suena como 'iiii'.",
+      "feedback_incorrect": "Escucha mentalmente el sonido y vuelve a intentarlo.",
+      "audio_path": "assets/audio/i.wav"
+    },
+    {
+      "id": "ex_vocal_o_001",
+      "skill_id": "vocal_o",
+      "method_id": "M1_visual",
+      "question": "¿Cuál es la vocal O?",
+      "options": [
+        "A",
+        "E",
+        "I",
+        "O"
+      ],
+      "correct_answer": "O",
+      "feedback_correct": "Muy bien. Esa es la vocal O.",
+      "feedback_incorrect": "Inténtalo de nuevo. Observa bien la forma de la letra."
+    },
+    {
+      "id": "ex_vocal_o_002",
+      "skill_id": "vocal_o",
+      "method_id": "M4_fonetico",
+      "question": "Escucha el audio y responde: ¿Qué vocal suena como: ?",
+      "options": [
+        "A",
+        "E",
+        "O",
+        "U"
+      ],
+      "correct_answer": "O",
+      "audio_text": "oooo",
+      "feedback_correct": "Correcto. La vocal O suena como 'oooo'.",
+      "feedback_incorrect": "Escucha mentalmente el sonido y vuelve a intentarlo.",
+      "audio_path": "assets/audio/o.wav"
+    },
+    {
+      "id": "ex_vocal_u_001",
+      "skill_id": "vocal_u",
+      "method_id": "M1_visual",
+      "question": "¿Cuál es la vocal U?",
+      "options": [
+        "A",
+        "E",
+        "I",
+        "U"
+      ],
+      "correct_answer": "U",
+      "feedback_correct": "Muy bien. Esa es la vocal U.",
+      "feedback_incorrect": "Inténtalo de nuevo. Observa bien la forma de la letra."
+    },
+    {
+      "id": "ex_vocal_u_002",
+      "skill_id": "vocal_u",
+      "method_id": "M4_fonetico",
+      "question": "Escucha el audio y responde: ¿Qué vocal suena como: ?",
+      "options": [
+        "A",
+        "E",
+        "I",
+        "U"
+      ],
+      "correct_answer": "U",
+      "audio_text": "uuuu",
+      "feedback_correct": "Correcto. La vocal U suena como 'uuuu'.",
+      "feedback_incorrect": "Escucha mentalmente el sonido y vuelve a intentarlo.",
+      "audio_path": "assets/audio/u.wav"
+    }
+  ]
+}
