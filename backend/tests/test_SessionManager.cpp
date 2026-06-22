@@ -37,6 +37,22 @@ TEST_CASE("SessionManager: Validacion de tiempo", "[session]") {
         REQUIRE(manager.isResponseTimeAnomalous(301000.0));        // > 5 minutos
     }
 
+    SECTION("isImpulsiveError (rage-quit / random clicking detection)") {
+        // Incorrect + very fast = impulsive (should flag)
+        REQUIRE(manager.isImpulsiveError(150.0, false));   // 150ms incorrect
+        REQUIRE(manager.isImpulsiveError(50.0, false));    // 50ms incorrect
+        REQUIRE(manager.isImpulsiveError(299.0, false));   // just below threshold
+
+        // Correct + very fast = NOT impulsive (fast correct is good!)
+        REQUIRE_FALSE(manager.isImpulsiveError(150.0, true));
+        REQUIRE_FALSE(manager.isImpulsiveError(50.0, true));
+
+        // Incorrect + normal speed = NOT impulsive (genuine mistake)
+        REQUIRE_FALSE(manager.isImpulsiveError(1500.0, false));
+        REQUIRE_FALSE(manager.isImpulsiveError(300.0, false));  // at threshold
+        REQUIRE_FALSE(manager.isImpulsiveError(5000.0, false));
+    }
+
     SECTION("getSessionElapsedMinutes devuelve 0 si no hay sesion activa") {
         SkillState state;  // Sin startSession
         REQUIRE(manager.getSessionElapsedMinutes(state) == 0.0);

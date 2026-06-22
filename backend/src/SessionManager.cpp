@@ -25,6 +25,14 @@ bool SessionManager::isResponseTimeAnomalous(double response_time_ms) const noex
     return response_time_ms > 300000.0;
 }
 
+bool SessionManager::isImpulsiveError(double response_time_ms, bool is_correct) const noexcept {
+    // Impulsive error: incorrect AND extremely fast (< 300ms)
+    // This catches rage-quitting / random clicking patterns where the student
+    // submits answers without reading the question
+    constexpr double IMPULSIVE_THRESHOLD_MS = 300.0;
+    return !is_correct && response_time_ms < IMPULSIVE_THRESHOLD_MS;
+}
+
 double SessionManager::getSessionElapsedMinutes(const SkillState& state) const noexcept {
     // Bug fix #3: usar steady_clock (monótono) en lugar de system_clock.
     // Verificamos con el campo steady: si es el epoch (zero) no hay sesión activa.

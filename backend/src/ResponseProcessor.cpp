@@ -68,8 +68,9 @@ ResponseResult ResponseProcessor::processResponse(
         }
     }
 
-    // 3. Verificar si el tiempo de respuesta es anómalo (> 5 mins)
-    bool anomalous = m_session.isResponseTimeAnomalous(safe_response_ms);
+    // 3. Verificar si el tiempo de respuesta es anómalo (> 5 mins) o impulsivo (error + < 300ms)
+    bool anomalous = m_session.isResponseTimeAnomalous(safe_response_ms)
+                   || m_session.isImpulsiveError(safe_response_ms, correct);
 
     // 4. Solo actualizar modelos si el tiempo NO es anómalo
     if (!anomalous) {

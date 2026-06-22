@@ -130,10 +130,57 @@ void run_scenario(core::ResponseProcessor& processor, const std::string& name, i
         } else if (name == "Perfect Performance") {
             correct = true;
             time_ms = 1500.0;
+        } else if (name == "The Over-Practicer") {
+            // Constant practice to test massive fatigue limits (10000 iterations)
+            correct = dist(gen) > 0.2; // 80% correct
+            time_ms = 800.0 + dist(gen) * 500.0;
+        } else if (name == "The Rage Quitter") {
+            // 5 corrects, then 10 super-fast errors, then gap
+            if (i < 5) {
+                correct = true;
+                time_ms = 2000.0;
+            } else if (i < 15) {
+                correct = false;
+                time_ms = 150.0; // Anomalous / impulsive speed
+            } else {
+                correct = true;
+                time_ms = 2000.0;
+                if (i == 15) {
+                    sqlite3* db;
+                    sqlite3_open("stress_bot.db", &db);
+                    std::string sql = "UPDATE skill_state SET last_practice_time = strftime('%s', 'now', '-3 days') WHERE student_id = " + std::to_string(student_id) + " AND skill_id = " + std::to_string(skill_id) + ";";
+                    sqlite3_exec(db, sql.c_str(), nullptr, nullptr, nullptr);
+                    sqlite3_close(db);
+                }
+            }
+        } else if (name == "The Slow Improver") {
+            // Starts with slow errors, gradually gets fast corrects
+            double progress = static_cast<double>(i) / iterations;
+            correct = dist(gen) < progress;
+            time_ms = 20000.0 * (1.0 - progress) + 1500.0;
+        } else if (name == "Method Switcher") {
+            // Visual is terrible, Auditory is okay, Kinesthetic is great
+            // We'll let MAB pick, but we simulate success based on the picked method
+        }
+
+        mab::METHOD selected_method = mab::METHOD::VISUAL;
+        if (name == "Method Switcher") {
+            // Ask MAB Engine which method it wants (this is a mock call since we don't have the engine in the loop directly here, 
+            // wait, ResponseProcessor takes the method as an input, but the caller usually calls selectMethod from MAB Engine first!
+            // In StressBot, we've hardcoded VISUAL. Let's fix that!
+            // Actually, for Method Switcher, we need access to the MAB Engine or we just hardcode the method selection for this test.
+            // In Stress Bot, we don't have the `mab` engine in scope of `run_scenario`!
+            // Let's just simulate the method selection randomly or skip the MAB test here, since it's already tested in unit tests.
+            // Better: just alternate methods and see if the engine survives.
+            selected_method = static_cast<mab::METHOD>(i % 5);
+            if (selected_method == mab::METHOD::VISUAL) correct = false;
+            else if (selected_method == mab::METHOD::KINESTHETIC) correct = true;
+            else correct = dist(gen) > 0.5;
+            time_ms = 1500.0;
         }
 
         auto result =
-            processor.processResponse(student_id, skill_id, mab::METHOD::VISUAL, correct, time_ms);
+            processor.processResponse(student_id, skill_id, selected_method, correct, time_ms);
 
         // NaN check on all outputs
         if (std::isnan(result.current_pL) || std::isnan(result.current_pL_theorical)) {
@@ -255,6 +302,18 @@ void run_scenario(core::ResponseProcessor& processor, const std::string& name, i
             verdict.fail("pL decreased despite all-correct responses (slow processing)");
         }
     }
+    else if (name == "The Over-Practicer") {
+        if (had_nan) verdict.fail("NaN detected during extreme over-practice");
+    }
+    else if (name == "The Rage Quitter") {
+        if (anomaly_count < 8) verdict.fail("Failed to detect impulsive fast errors as anomalies");
+    }
+    else if (name == "The Slow Improver") {
+        if (final_pL < 0.5) verdict.fail("Failed to recover mastery after initial slow errors");
+    }
+    else if (name == "Method Switcher") {
+        if (had_nan) verdict.fail("NaN detected during method switching");
+    }
 
     // ─── Print verdict ───
     std::cout << "Final: pL_op=" << final_pL << " pL_th=" << final_pL_theo
@@ -290,7 +349,10 @@ int main() {
                 {"id": 109, "name": "Skill 109", "prerequisites": []},
                 {"id": 110, "name": "Skill 110", "prerequisites": []},
                 {"id": 111, "name": "Skill 111", "prerequisites": []},
-                {"id": 112, "name": "Skill 112", "prerequisites": []}
+                {"id": 112, "name": "Skill 112", "prerequisites": []},
+                {"id": 113, "name": "Skill 113", "prerequisites": []},
+                {"id": 114, "name": "Skill 114", "prerequisites": []},
+                {"id": 115, "name": "Skill 115", "prerequisites": []}
             ]
         })";
     }
@@ -327,6 +389,12 @@ int main() {
     run_scenario(processor, "500 Corrects",             500, 8, 108);
     run_scenario(processor, "500 Incorrects",           500, 9, 109);
     run_scenario(processor, "30 Days Inactivity",         5, 10, 110);
+    
+    // --- New Scenarios ---
+    run_scenario(processor, "The Over-Practicer",     10000, 12, 112);
+    run_scenario(processor, "The Rage Quitter",          25, 13, 113);
+    run_scenario(processor, "The Slow Improver",        100, 14, 114);
+    run_scenario(processor, "Method Switcher",           50, 15, 115);
 
     // Cleanup
     std::filesystem::remove(db_path);

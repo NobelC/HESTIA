@@ -29,18 +29,24 @@ const std::vector<LearnerArchetype> ARCHETYPES = {
     {"Slow and Consistent",  0.05, 0.10, 0.25, 0.01,  24, {0.4, 0.4, 0.8, 0.4, 0.4}},
     {"Forgetful Learner",    0.20, 0.10, 0.25, 0.40, 168, {0.5, 0.5, 0.5, 0.5, 0.5}},
     {"Struggling Learner",   0.02, 0.15, 0.25, 0.15,  72, {0.3, 0.3, 0.3, 0.4, 0.3}},
+    // --- New Expanded Archetypes ---
+    {"The Crammer",          0.35, 0.10, 0.25, 0.35,   2, {0.8, 0.6, 0.6, 0.6, 0.6}}, // Low gap, high P(F) due to cramming
+    {"Inconsistent Genius",  0.35, 0.30, 0.25, 0.05,  24, {0.7, 0.7, 0.7, 0.7, 0.7}}, // High P(T) but very high slip
+    {"Guessing Gamer",       0.05, 0.10, 0.40, 0.10,  24, {0.4, 0.4, 0.4, 0.4, 0.4}}, // Low P(T), high guessing
 };
 
-void run_simulation(const LearnerArchetype& arch, int num_runs = 100, int items_per_session = 20, int max_sessions = 50) {
+void run_simulation(const LearnerArchetype& arch, int num_runs = 1000, int base_items_per_session = 20, int max_sessions = 50) {
     std::cout << "--- Simulating: " << arch.name << " (" << num_runs << " runs) ---" << std::endl;
     std::cout << "Config: P(T)=" << arch.p_transition << " P(S)=" << arch.p_slip
               << " P(G)=" << arch.p_guess << " P(F)=" << arch.p_forget
-              << " hours_gap=" << arch.hours_between_sessions
-              << " items/session=" << items_per_session << std::endl;
+              << " base_gap=" << arch.hours_between_sessions << "h"
+              << " base_items=" << base_items_per_session << std::endl;
     std::cout << "Mastery Criterion: m_pLearn_theorical >= 0.90" << std::endl;
     
     std::mt19937 generator(42);
     std::uniform_real_distribution<double> distribution(0.0, 1.0);
+    std::normal_distribution<double> items_noise(0.0, 5.0); // stddev=5
+    std::normal_distribution<double> gap_noise(0.0, arch.hours_between_sessions * 0.3); // 30% gap noise
 
     const double MASTERY_THRESHOLD = 0.90;
     std::vector<int> convergence_times;
@@ -61,17 +67,24 @@ void run_simulation(const LearnerArchetype& arch, int num_runs = 100, int items_
         int convergence_session = -1;
 
         for (int s = 0; s < max_sessions; ++s) {
-            // Between sessions (except the first): inject simulated time gap
-            // This is the ONLY way to activate applyForgetFactor in a simulation
-            // that runs in milliseconds of wall-clock time
+            // Noise for hours gap
             if (s > 0) {
+                double gap = std::max(0.0, arch.hours_between_sessions + gap_noise(generator));
+                if (arch.name == "The Crammer" && s > 4) {
+                    // Crammer simulates 5 low-gap sessions, then disappears for 500h
+                    gap = 500.0;
+                }
                 state.last_practice_time = std::chrono::system_clock::now()
-                    - std::chrono::hours(arch.hours_between_sessions);
+                    - std::chrono::hours(static_cast<int>(gap));
                 engine.applyForgetFactor(state);
             }
 
             mab.resetSession();
-            for (int i = 0; i < items_per_session; ++i) {
+            
+            // Noise for items per session
+            int current_items = std::max(5, base_items_per_session + static_cast<int>(items_noise(generator)));
+            
+            for (int i = 0; i < current_items; ++i) {
                 METHOD method = mab.selectMethod();
                 double method_prob = arch.method_success_probs[static_cast<int>(method)];
                 

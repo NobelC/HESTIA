@@ -14,8 +14,11 @@ public:
     // Incrementa session_count y realiza cleanup
     void endSession(SkillState& state) const noexcept;
 
-    // Retorna true si el tiempo supera 5 minutos (300,000 ms)
+    // Retorna true si el tiempo supera 5 minutos (300,000 ms) — anomalía lenta
     [[nodiscard]] bool isResponseTimeAnomalous(double response_time_ms) const noexcept;
+
+    // Retorna true si la respuesta es incorrecta y extremadamente rápida (< 300ms) — anomalía impulsiva
+    [[nodiscard]] bool isImpulsiveError(double response_time_ms, bool is_correct) const noexcept;
 
     // Helper que usa session_start_time para calcular minutos transcurridos
     [[nodiscard]] double getSessionElapsedMinutes(const SkillState& state) const noexcept;
