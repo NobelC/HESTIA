@@ -31,9 +31,9 @@ TEST_CASE("ZoneBlender: Selección de zona según P(L)", "[zone]") {
         REQUIRE(ratio < 0.18);
     }
 
-    SECTION("80% zona baja con P(L) < 0.60") {
+    SECTION("~45% zona baja con P(L) = 0.45") {
         SkillState state;
-        state.m_pLearn_operative = 0.45; // Antes caía en 60%, ahora en 80%
+        state.m_pLearn_operative = 0.45;
 
         int low_count = 0;
         constexpr int N = 1000;
@@ -45,13 +45,13 @@ TEST_CASE("ZoneBlender: Selección de zona según P(L)", "[zone]") {
             if (z == Zone::LOW) low_count++;
         }
 
-        // Esperamos ~80% (con margen: 73%-87%)
+        // P(LOW) = 0.05 + 0.80 * (1 / (1 + exp(10*(0.45-0.45)))) = 0.45
         double ratio = static_cast<double>(low_count) / N;
-        REQUIRE(ratio > 0.73);
-        REQUIRE(ratio < 0.87);
+        REQUIRE(ratio > 0.38);
+        REQUIRE(ratio < 0.52);
     }
 
-    SECTION("20% zona baja con 0.60 <= P(L) < 0.90") {
+    SECTION("~9% zona baja con P(L) = 0.75") {
         SkillState state;
         state.m_pLearn_operative = 0.75;
 
@@ -65,10 +65,10 @@ TEST_CASE("ZoneBlender: Selección de zona según P(L)", "[zone]") {
             if (z == Zone::LOW) low_count++;
         }
 
-        // Esperamos ~20% (con margen: 13%-27%)
+        // P(LOW) = 0.05 + 0.80 * (1 / (1 + exp(10*(0.75-0.45)))) = 0.088
         double ratio = static_cast<double>(low_count) / N;
-        REQUIRE(ratio > 0.13);
-        REQUIRE(ratio < 0.27);
+        REQUIRE(ratio > 0.05);
+        REQUIRE(ratio < 0.15);
     }
 
     SECTION("Combina BKT + Graph: selectExercise retorna resultado válido") {

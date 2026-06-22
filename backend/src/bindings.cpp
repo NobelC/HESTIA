@@ -25,13 +25,16 @@ PYBIND11_MODULE(hestia_core, m) {
         .def_readwrite("session_count", &bkt::SkillState::session_count)
         .def_readwrite("consecutive_correct", &bkt::SkillState::consecutive_correct)
         .def_readwrite("consecutive_error", &bkt::SkillState::consecutive_error)
-        .def_readwrite("is_initialized", &bkt::SkillState::is_initialized);
+        .def_readwrite("is_initialized", &bkt::SkillState::is_initialized)
+        .def_readwrite("stall_window_hits", &bkt::SkillState::m_stall_window_hits)
+        .def_readwrite("stall_window_total", &bkt::SkillState::m_stall_window_total);
 
     py::class_<bkt::BKTEngine>(m_bkt, "BKTEngine")
         .def(py::init<>());
 
     py::class_<bkt::SessionManager>(m_bkt, "SessionManager")
-        .def(py::init<>());
+        .def(py::init<>())
+        .def("get_fatigue_multiplier", &bkt::SessionManager::getFatigueMultiplier);
 
     // Módulo MAB
     py::module_ m_mab = m.def_submodule("mab", "MAB Module");
@@ -45,8 +48,7 @@ PYBIND11_MODULE(hestia_core, m) {
         .export_values();
 
     py::class_<mab::MABEngine>(m_mab, "MABEngine")
-        .def(py::init<double>(), py::arg("exploration_c") = 1.0)
-        // Bug fix #2: restaurar historial MAB desde DB al inicio de sesión
+        .def(py::init<double, uint64_t>(), py::arg("exploration_c") = 1.0, py::arg("seed") = 0)
         .def("load_states", [](mab::MABEngine& self,
                                const std::array<mab::MethodState, 5>& states) {
              self.loadFrom(states);
@@ -59,6 +61,7 @@ PYBIND11_MODULE(hestia_core, m) {
     py::enum_<zone::Zone>(m_zone, "Zone")
         .value("LOW", zone::Zone::LOW)
         .value("CURRENT", zone::Zone::CURRENT)
+        .value("REVIEW", zone::Zone::REVIEW)
         .export_values();
 
     py::class_<zone::ZoneBlender>(m_zone, "ZoneBlender")
@@ -72,6 +75,7 @@ PYBIND11_MODULE(hestia_core, m) {
         .def("load", &graph::SkillGraph::load)
         .def("get_prerequisites", &graph::SkillGraph::getPrerequisites)
         .def("get_unlocked_skills", &graph::SkillGraph::getUnlockedSkills)
+        .def("get_learning_path", &graph::SkillGraph::getLearningPath)
         .def("exists", &graph::SkillGraph::exists)
         .def("size", &graph::SkillGraph::size);
 
@@ -80,7 +84,9 @@ PYBIND11_MODULE(hestia_core, m) {
 
     py::class_<srs::SRSQueue>(m_srs, "SRSQueue")
         .def(py::init<>())
-        .def("mark_result", &srs::SRSQueue::markResult)
+        .def("mark_result", [](srs::SRSQueue& self, int skill_id, bool correct, double pL_op, double pF) {
+            self.markResult(skill_id, correct, pL_op, pF);
+        }, py::arg("skill_id"), py::arg("correct"), py::arg("pL_operative") = 0.5, py::arg("p_forget") = 0.5)
         .def("get_due_skills", &srs::SRSQueue::getDueSkills);
 
     // Módulo Persistence
@@ -95,7 +101,6 @@ PYBIND11_MODULE(hestia_core, m) {
         .def("load_method_states", [](persistence::PersistenceLayer& self, int student_id, int skill_id) {
              return self.loadMethodStates(student_id, skill_id);
          })
-        // Bug fix #6: persistir cola SRS entre sesiones
         .def("save_srs_state", [](persistence::PersistenceLayer& self, int student_id,
                                    srs::SRSQueue& queue) {
              return self.saveSrsState(student_id, queue);

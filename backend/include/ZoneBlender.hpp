@@ -7,7 +7,7 @@
 
 namespace hestia::zone {
 
-enum class Zone : uint8_t { LOW = 0, CURRENT = 1 };
+enum class Zone : uint8_t { LOW = 0, CURRENT = 1, REVIEW = 2 };
 
 struct ExerciseSelection {
     Zone zone;

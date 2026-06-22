@@ -9,6 +9,13 @@ std::unique_ptr<PersistenceLayer> PersistenceLayer::create(const std::string& db
     if (sqlite3_open_v2(db_path.c_str(), &db, SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_FULLMUTEX, nullptr) != SQLITE_OK)
         return nullptr;
 
+    // ─── WAL pragmas for robustness and analytics ───
+    sqlite3_exec(db, "PRAGMA journal_mode=WAL;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db, "PRAGMA synchronous=NORMAL;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db, "PRAGMA cache_size=-64000;", nullptr, nullptr, nullptr); // 64MB cache
+    sqlite3_exec(db, "PRAGMA temp_store=MEMORY;", nullptr, nullptr, nullptr);
+    sqlite3_exec(db, "PRAGMA mmap_size=268435456;", nullptr, nullptr, nullptr); // 256MB mmap
+
     auto instance = std::unique_ptr<PersistenceLayer>(new PersistenceLayer(db));
     if (!instance->checkSchemaVersion().success() || !instance->prepareStatements().success())
         return nullptr;
@@ -24,14 +31,14 @@ PersistenceLayer::~PersistenceLayer() {
     sqlite3_finalize(m_insert_log);
     sqlite3_finalize(m_select_bkt);
     sqlite3_finalize(m_select_mab);
-    // Bug fix #6: liberar statements SRS
     sqlite3_finalize(m_upsert_srs);
     sqlite3_finalize(m_select_srs);
-    // Analytics
+    sqlite3_finalize(m_insert_event);
     sqlite3_finalize(m_select_hitrate);
     sqlite3_finalize(m_select_pl_history);
     sqlite3_finalize(m_select_session_durations);
     sqlite3_finalize(m_select_session_logs);
+    sqlite3_finalize(m_select_student_progress);
     sqlite3_close(m_db);
 }
 
@@ -41,14 +48,14 @@ void PersistenceLayer::resetAllStatements() noexcept {
     sqlite3_clear_bindings(m_insert_log); sqlite3_reset(m_insert_log);
     sqlite3_clear_bindings(m_select_bkt); sqlite3_reset(m_select_bkt);
     sqlite3_clear_bindings(m_select_mab); sqlite3_reset(m_select_mab);
-    // Bug fix #6
     if (m_upsert_srs) { sqlite3_clear_bindings(m_upsert_srs); sqlite3_reset(m_upsert_srs); }
     if (m_select_srs) { sqlite3_clear_bindings(m_select_srs); sqlite3_reset(m_select_srs); }
-    // Analytics
+    if (m_insert_event) { sqlite3_clear_bindings(m_insert_event); sqlite3_reset(m_insert_event); }
     if (m_select_hitrate) { sqlite3_clear_bindings(m_select_hitrate); sqlite3_reset(m_select_hitrate); }
     if (m_select_pl_history) { sqlite3_clear_bindings(m_select_pl_history); sqlite3_reset(m_select_pl_history); }
     if (m_select_session_durations) { sqlite3_clear_bindings(m_select_session_durations); sqlite3_reset(m_select_session_durations); }
     if (m_select_session_logs) { sqlite3_clear_bindings(m_select_session_logs); sqlite3_reset(m_select_session_logs); }
+    if (m_select_student_progress) { sqlite3_clear_bindings(m_select_student_progress); sqlite3_reset(m_select_student_progress); }
 }
 
 PersistenceResult PersistenceLayer::checkSchemaVersion() noexcept {
@@ -57,9 +64,7 @@ PersistenceResult PersistenceLayer::checkSchemaVersion() noexcept {
     if (sqlite3_step(stmt) == SQLITE_ROW) {
         int ver = sqlite3_column_int(stmt, 0);
         sqlite3_finalize(stmt);
-        // Aceptar v1 (legacy sin srs_state) y v2 (con srs_state).
-        // v1 funciona correctamente: saveSrsState/loadSrsState fallarán
-        // silenciosamente si la tabla no existe, lo cual es seguro.
+        // Accept any previous versions; we handle gracefully if unmigrated
         if (ver < 1 || ver > CURRENT_VERSION)
             return {StorageError::SCHEMA_MISMATCH, "DB version mismatch"};
         return {StorageError::OK, ""};
@@ -69,7 +74,6 @@ PersistenceResult PersistenceLayer::checkSchemaVersion() noexcept {
 }
 
 PersistenceResult PersistenceLayer::prepareStatements() noexcept {
-    // UPSERT Completo para consistencia pedagógica
     const char* q_bkt = 
         "INSERT INTO skill_state VALUES (?,?,?,?,?,?,?,?,?,?) "
         "ON CONFLICT(student_id, skill_id) DO UPDATE SET "
@@ -89,10 +93,6 @@ PersistenceResult PersistenceLayer::prepareStatements() noexcept {
     if (sqlite3_prepare_v2(m_db, q_sbkt, -1, &m_select_bkt, nullptr) != SQLITE_OK) return {StorageError::CONNECTION_ERROR, "Stmt Fail SelBKT"};
     if (sqlite3_prepare_v2(m_db, q_smab, -1, &m_select_mab, nullptr) != SQLITE_OK) return {StorageError::CONNECTION_ERROR, "Stmt Fail SelMAB"};
 
-    // Bug fix #6: preparar statements para persistir la cola SRS.
-    // Si la tabla srs_state no existe (DB v1 sin migrar), prepare devuelve error
-    // y lo ignoramos para no bloquear el inicio — los punteros quedan en nullptr
-    // y los métodos saveSrsState/loadSrsState los comprueban antes de usarlos.
     const char* q_usrs =
         "INSERT INTO srs_state (student_id, skill_id, correct_streak, next_review) VALUES (?,?,?,?) "
         "ON CONFLICT(student_id, skill_id) DO UPDATE SET "
@@ -101,16 +101,32 @@ PersistenceResult PersistenceLayer::prepareStatements() noexcept {
     sqlite3_prepare_v2(m_db, q_usrs, -1, &m_upsert_srs, nullptr); // fallo silencioso si tabla ausente
     sqlite3_prepare_v2(m_db, q_ssrs, -1, &m_select_srs, nullptr);
 
-    // Analytics (fallan silenciosamente si p_learn o db vieja no está migrada en runtime)
+    // Schema v6
+    const char* q_evt = "INSERT INTO session_events (student_id, event_type, skill_id, timestamp, metadata) VALUES (?,?,?,?,?);";
+    sqlite3_prepare_v2(m_db, q_evt, -1, &m_insert_event, nullptr); // silent fail if unmigrated
+
     const char* q_hr = "SELECT AVG(is_correct) FROM response_log WHERE student_id = ? AND skill_id = ?;";
     const char* q_pl = "SELECT timestamp, p_learn FROM response_log WHERE student_id = ? AND skill_id = ? ORDER BY timestamp ASC;";
     const char* q_sd = "SELECT timestamp FROM response_log WHERE student_id = ? ORDER BY timestamp ASC;";
     const char* q_sl = "SELECT skill_id, method_id, timestamp, is_correct, p_learn FROM response_log WHERE student_id = ? AND timestamp >= ? ORDER BY timestamp ASC;";
+    
+    // Progress query groups log data and joins with current state
+    const char* q_prog = R"(
+        SELECT 
+            s.skill_id,
+            (SELECT p_learn FROM response_log WHERE student_id = s.student_id AND skill_id = s.skill_id ORDER BY timestamp ASC LIMIT 1) as pL_start,
+            s.p_learn_operative as pL_current,
+            (SELECT COUNT(DISTINCT timestamp / 86400) FROM response_log WHERE student_id = s.student_id AND skill_id = s.skill_id) as total_sessions,
+            (SELECT AVG(is_correct) FROM response_log WHERE student_id = s.student_id AND skill_id = s.skill_id) as avg_hit_rate
+        FROM skill_state s
+        WHERE s.student_id = ?
+    )";
 
     sqlite3_prepare_v2(m_db, q_hr, -1, &m_select_hitrate, nullptr);
     sqlite3_prepare_v2(m_db, q_pl, -1, &m_select_pl_history, nullptr);
     sqlite3_prepare_v2(m_db, q_sd, -1, &m_select_session_durations, nullptr);
     sqlite3_prepare_v2(m_db, q_sl, -1, &m_select_session_logs, nullptr);
+    sqlite3_prepare_v2(m_db, q_prog, -1, &m_select_student_progress, nullptr);
 
     return {StorageError::OK, ""};
 }
@@ -131,7 +147,6 @@ std::optional<bkt::SkillState> PersistenceLayer::loadSkillState(int student_id, 
         s.avg_response_time_ms = sqlite3_column_double(m_select_bkt, 8);
         s.last_practice_time = std::chrono::system_clock::from_time_t(sqlite3_column_int64(m_select_bkt, 9));
         
-        // Saneamiento estricto en el trust boundary
         s.validationProbabilityRanges(); 
         
         if (std::isnan(s.avg_response_time_ms) || s.avg_response_time_ms < 0) {
@@ -142,6 +157,13 @@ std::optional<bkt::SkillState> PersistenceLayer::loadSkillState(int student_id, 
         if (s.total_attempts == 0) {
             s.total_attempts = 1;
         }
+        
+        // Restore mastery flag based on current P(L)
+        if (s.m_pLearn_operative >= bkt::MASTERY_CONSOLIDATION_THRESHOLD ||
+            (s.m_pLearn_operative >= 0.85 && s.m_pLearn_operative == s.m_pLearn_theorical)) {
+            s.is_mastered = true;
+        }
+        
         state = s;
     }
     
@@ -191,12 +213,12 @@ PersistenceResult PersistenceLayer::saveInteraction(int sid, int skid, const bkt
 
     if (sqlite3_step(m_upsert_bkt) != SQLITE_DONE || sqlite3_step(m_upsert_mab) != SQLITE_DONE || sqlite3_step(m_insert_log) != SQLITE_DONE) {
         sqlite3_exec(m_db, "ROLLBACK;", nullptr, nullptr, nullptr);
-        resetAllStatements(); // Limpieza estricta tras fallo
+        resetAllStatements();
         return {StorageError::WRITE_FAILURE, "Transaction failed. Rolled back."};
     }
 
     sqlite3_exec(m_db, "COMMIT;", nullptr, nullptr, nullptr);
-    resetAllStatements(); // Limpieza para la siguiente interacción
+    resetAllStatements();
     return {StorageError::OK, ""};
 }
 
@@ -221,7 +243,6 @@ PersistenceResult PersistenceLayer::purgeOldLogs(int months) noexcept {
 }
 
 PersistenceResult PersistenceLayer::saveSrsState(int student_id, const srs::SRSQueue& queue) noexcept {
-    // Bug fix #6: persistir toda la cola SRS en una sola transacción.
     if (!m_upsert_srs) {
         return {StorageError::CONNECTION_ERROR, "SRS statement not prepared (table missing?)"};
     }
@@ -253,8 +274,7 @@ PersistenceResult PersistenceLayer::saveSrsState(int student_id, const srs::SRSQ
 }
 
 void PersistenceLayer::loadSrsState(int student_id, srs::SRSQueue& queue) noexcept {
-    // Bug fix #6: restaurar la cola SRS desde la DB al inicio de sesión.
-    if (!m_select_srs) return; // tabla ausente (DB v1 sin migrar) — arranque limpio
+    if (!m_select_srs) return;
 
     sqlite3_bind_int(m_select_srs, 1, student_id);
 
@@ -270,7 +290,6 @@ void PersistenceLayer::loadSrsState(int student_id, srs::SRSQueue& queue) noexce
     sqlite3_clear_bindings(m_select_srs);
     sqlite3_reset(m_select_srs);
 }
-
 
 double PersistenceLayer::getHitRate(int student_id, int skill_id) noexcept {
     if (!m_select_hitrate) return 0.0;
@@ -341,7 +360,6 @@ double PersistenceLayer::getAverageSessionDuration(int student_id) noexcept {
     int64_t current_session_start = timestamps[0];
     int64_t current_session_end = timestamps[0];
     
-    // 30 minutes threshold for new session
     const int64_t SESSION_THRESHOLD = 30 * 60;
     
     for (size_t i = 1; i < timestamps.size(); ++i) {
@@ -355,7 +373,7 @@ double PersistenceLayer::getAverageSessionDuration(int student_id) noexcept {
     total_duration += (current_session_end - current_session_start);
     num_sessions++;
     
-    return static_cast<double>(total_duration) / num_sessions / 60.0; // En minutos
+    return static_cast<double>(total_duration) / num_sessions / 60.0;
 }
 
 std::vector<LogEntry> PersistenceLayer::getSessionLogs(int student_id, int64_t session_start_ts) noexcept {
@@ -378,4 +396,30 @@ std::vector<LogEntry> PersistenceLayer::getSessionLogs(int student_id, int64_t s
     sqlite3_reset(m_select_session_logs);
     return logs;
 }
+
+std::vector<SkillProgress> PersistenceLayer::getStudentProgress(int student_id) noexcept {
+    std::vector<SkillProgress> progress;
+    if (!m_select_student_progress) return progress;
+    
+    sqlite3_bind_int(m_select_student_progress, 1, student_id);
+    
+    while (sqlite3_step(m_select_student_progress) == SQLITE_ROW) {
+        SkillProgress sp;
+        sp.skill_id = sqlite3_column_int(m_select_student_progress, 0);
+        sp.pL_start = sqlite3_column_double(m_select_student_progress, 1);
+        sp.pL_current = sqlite3_column_double(m_select_student_progress, 2);
+        sp.pL_delta = sp.pL_current - sp.pL_start;
+        sp.total_sessions = sqlite3_column_int(m_select_student_progress, 3);
+        sp.avg_hit_rate = sqlite3_column_double(m_select_student_progress, 4);
+        
+        // Mark as mastered if current pL is at least the consolidation threshold
+        sp.is_mastered = (sp.pL_current >= bkt::MASTERY_CONSOLIDATION_THRESHOLD);
+        
+        progress.push_back(sp);
+    }
+    sqlite3_clear_bindings(m_select_student_progress);
+    sqlite3_reset(m_select_student_progress);
+    return progress;
+}
+
 } // namespace hestia::persistence

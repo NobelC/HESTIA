@@ -29,6 +29,25 @@ struct ResponseResult {
     bool newly_mastered;  // true si P(L) teórico dominó al operativo
 };
 
+struct ValidationResult {
+    bool valid;
+    std::string reason;
+    double adjusted_response_ms; // tiempo corregido si fue anómalo
+};
+
+struct SessionContext {
+    int student_id{-1};
+    int64_t start_timestamp{0};
+    std::vector<ResponseResult> history;
+    double cumulative_correct{0};
+    double cumulative_total{0};
+    
+    [[nodiscard]] double getSessionHitRate() const noexcept {
+        if (cumulative_total == 0) return 0.0;
+        return cumulative_correct / cumulative_total;
+    }
+};
+
 class ResponseProcessor {
 public:
     ResponseProcessor(
@@ -50,7 +69,7 @@ public:
         bool correct, double response_ms);
 
     /// Gestión del ciclo de sesión (delega a SessionManager)
-    void startSession(bkt::SkillState& state);
+    void startSession(int student_id, bkt::SkillState& state);
     void endSession(bkt::SkillState& state);
     [[nodiscard]] SessionReport generateSessionReport(int student_id, int64_t session_start_ts) const;
 
@@ -69,6 +88,11 @@ private:
     graph::SkillGraph& m_skill_graph;
     srs::SRSQueue& m_srs_queue;
     double m_lambda;
+
+    SessionContext m_current_session;
+    bool m_force_low_zone{false};
+
+    [[nodiscard]] ValidationResult validateInput(int skill_id, double response_ms) const noexcept;
 };
 
 } // namespace hestia::core

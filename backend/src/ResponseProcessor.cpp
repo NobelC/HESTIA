@@ -23,15 +23,31 @@ ResponseProcessor::ResponseProcessor(
     , m_lambda(lambda)
 {}
 
+ValidationResult ResponseProcessor::validateInput(int skill_id, double response_ms) const noexcept {
+    if (!m_skill_graph.exists(skill_id))
+        return {false, "skill_id no existe en grafo", response_ms};
+    
+    if (response_ms < 0.0)
+        return {false, "tiempo negativo", 0.0};
+        
+    // Tiempo imposiblemente rápido para una respuesta consciente (excepto bot o test)
+    if (response_ms > 0.0 && response_ms < bkt::MIN_RESPONSE_TIME_MS)
+        return {true, "tiempo muy rapido", bkt::MIN_RESPONSE_TIME_MS};
+        
+    return {true, "", response_ms};
+}
+
 ResponseResult ResponseProcessor::processResponse(
     int student_id, int skill_id,
     mab::METHOD used_method,
     bool correct, double response_ms)
 {
-    // 0. Validar que el skill_id existe en el grafo
-    if (!m_skill_graph.exists(skill_id)) {
+    // 0. Validar input
+    auto validation = validateInput(skill_id, response_ms);
+    if (!validation.valid) {
         return {skill_id, mab::METHOD::VISUAL, zone::Zone::CURRENT, 0.0, 0.0, false, false, false};
     }
+    double safe_response_ms = validation.adjusted_response_ms;
 
     // 1. Cargar estado desde persistencia (o usar default si no existe)
     auto loaded = m_storage.loadSkillState(student_id, skill_id);
@@ -43,37 +59,58 @@ ResponseResult ResponseProcessor::processResponse(
     // 2. Aplicar factor de olvido si han pasado >= 48 horas sin practicar
     m_bkt.applyForgetFactor(state);
 
-    // 3. Verificar si el tiempo de respuesta es anómalo
-    bool anomalous = m_session.isResponseTimeAnomalous(response_ms);
+    // Track regression (drop in P(L) operative >= REGRESSION_THRESHOLD)
+    if (loaded.has_value()) {
+        double previous_pL = loaded->m_pLearn_operative;
+        double current_pL  = state.m_pLearn_operative;
+        if (previous_pL - current_pL >= bkt::REGRESSION_THRESHOLD) {
+            m_force_low_zone = true;
+        }
+    }
+
+    // 3. Verificar si el tiempo de respuesta es anómalo (> 5 mins)
+    bool anomalous = m_session.isResponseTimeAnomalous(safe_response_ms);
 
     // 4. Solo actualizar modelos si el tiempo NO es anómalo
     if (!anomalous) {
         m_session.applyTransitionDecay(state, m_lambda);
-        m_bkt.updateKnowledge(state, correct, response_ms);
+        
+        // Fatigue modeling
+        double fatigue_mult = m_session.getFatigueMultiplier(state);
+        
+        m_bkt.updateKnowledge(state, correct, safe_response_ms, fatigue_mult);
         m_mab.updateMethod(used_method, correct);
+
+        // Update session context
+        m_current_session.cumulative_total++;
+        if (correct) m_current_session.cumulative_correct++;
     }
 
-    // 5. Actualizar cola SRS con el resultado
-    m_srs_queue.markResult(skill_id, correct);
+    // 5. Actualizar cola SRS con el resultado y parámetros BKT adaptativos
+    m_srs_queue.markResult(skill_id, correct, state.m_pLearn_operative, state.m_pForget);
 
     // 6. Persistir el estado actualizado (antes de recargar el MAB para la siguiente skill)
     const auto& ms = m_mab.getMethodState(used_method);
     [[maybe_unused]] auto save_result = m_storage.saveInteraction(
         student_id, skill_id, state, used_method, correct,
-        static_cast<int>(response_ms),
+        static_cast<int>(safe_response_ms),
         ms.count_attempts,
         ms.successes);
 
     // 7. Seleccionar siguiente ejercicio (zona y skill_id)
     auto selection = m_blender.selectExercise(skill_id, state, m_skill_graph, &m_srs_queue);
+    if (m_force_low_zone) {
+        selection.zone = zone::Zone::LOW; // Regresión prioriza prerequisito si hay
+        m_force_low_zone = false; // Reset
+    }
 
     // 8. Cargar el MAB para la *nueva* skill y elegir método
     auto next_mab_states = m_storage.loadMethodStates(student_id, selection.skill_id);
     m_mab.loadFrom(next_mab_states);
     mab::METHOD next_method = m_mab.selectMethod();
 
-    // 9. Retornar resultado
-    return {
+    // 9. Construir y guardar resultado en contexto
+    ResponseResult res = {
         selection.skill_id,
         next_method,
         selection.zone,
@@ -83,10 +120,18 @@ ResponseResult ResponseProcessor::processResponse(
         true,
         state.is_mastered
     };
+    m_current_session.history.push_back(res);
+
+    return res;
 }
 
-void ResponseProcessor::startSession(bkt::SkillState& state) {
+void ResponseProcessor::startSession(int student_id, bkt::SkillState& state) {
     m_session.startSession(state);
+    m_current_session.student_id = student_id;
+    m_current_session.start_timestamp = std::chrono::system_clock::to_time_t(state.session_start_time);
+    m_current_session.cumulative_total = 0;
+    m_current_session.cumulative_correct = 0;
+    m_current_session.history.clear();
 }
 
 void ResponseProcessor::endSession(bkt::SkillState& state) {

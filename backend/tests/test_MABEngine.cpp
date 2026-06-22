@@ -4,10 +4,17 @@
 
 using namespace hestia::mab;
 
-// Helper para forzar un estado de explotación (N alto)
 void fill_history(MABEngine& engine, METHOD method, uint32_t attempts, uint32_t successes) {
-    for (uint32_t i = 0; i < attempts; ++i) {
-        engine.updateMethod(method, i < successes);
+    if (attempts == 0) return;
+    double rate = static_cast<double>(successes) / attempts;
+    double current_successes = 0;
+    for (uint32_t i = 1; i <= attempts; ++i) {
+        bool correct = false;
+        if (current_successes / i < rate && current_successes < successes) {
+            correct = true;
+            current_successes++;
+        }
+        engine.updateMethod(method, correct);
     }
 }
 

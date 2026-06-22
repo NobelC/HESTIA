@@ -12,13 +12,10 @@ ZoneBlender::ZoneBlender(uint64_t seed) {
 }
 
 double ZoneBlender::getLowZoneProbability(double pL) noexcept {
-    // Tabla de selección de zona según P(L) operativo:
-    // P(L) < 0.60         → 80% zona baja
-    // 0.60 ≤ P(L) < 0.90  → 20% zona baja
-    // P(L) ≥ 0.90         → 10% zona baja
-    if (pL < 0.60) return 0.80;
-    if (pL < 0.90) return 0.20;
-    return 0.10; // P(L) >= 0.90
+    // Sigmoidea invertida: alta probabilidad LOW cuando pL es bajo
+    // P(LOW) = 0.85 / (1 + e^(10*(pL - 0.45))) + 0.05
+    double sigmoid = 1.0 / (1.0 + std::exp(10.0 * (pL - 0.45)));
+    return 0.05 + 0.80 * sigmoid;  // rango [0.05, 0.85]
 }
 
 Zone ZoneBlender::selectZone(const bkt::SkillState& state) {
@@ -34,13 +31,25 @@ ExerciseSelection ZoneBlender::selectExercise(
     const graph::SkillGraph& skill_graph,
     srs::SRSQueue* srs_queue)
 {
+    // Prioridad 1: SRS vencido → REVIEW obligatorio
     if (srs_queue) {
         auto due = srs_queue->getDueSkills();
         if (!due.empty()) {
-            return {Zone::LOW, due.front()}; // Use LOW zone for review (or REVIEW if defined)
+            // Elegir el primero de la cola (podría ordenarse por urgencia)
+            return {Zone::REVIEW, due.front()};
         }
     }
     
+    // Prioridad 2: Si P(L) < 0.30, forzar LOW (prereqs)
+    if (state.m_pLearn_operative < 0.30) {
+        auto prereqs = skill_graph.getPrerequisites(skill_id);
+        if (!prereqs.empty()) {
+            std::uniform_int_distribution<size_t> dist(0, prereqs.size() - 1);
+            return {Zone::LOW, prereqs[dist(m_rng)]};
+        }
+    }
+
+    // Prioridad 3: selección probabilística normal
     Zone zone = selectZone(state);
     
     if (zone == Zone::LOW) {

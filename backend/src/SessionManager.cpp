@@ -52,4 +52,25 @@ void SessionManager::applyTransitionDecay(SkillState& state, double lambda) cons
     state.validationProbabilityRanges();
 }
 
+// ─── Fatigue model ───
+
+double SessionManager::getFatigueMultiplier(const SkillState& state) const noexcept {
+    double elapsed = getSessionElapsedMinutes(state);
+    if (elapsed <= 10.0) return 1.0;           // First 10 min: no fatigue
+    if (elapsed >= 30.0) return 0.3;           // 30+ min: 70% penalty
+    // Linear interpolation between 10–30 min
+    return 1.0 - ((elapsed - 10.0) / 20.0) * 0.7;
+}
+
+// ─── Pattern detection ───
+
+bool SessionManager::isClickingPattern(const SkillState& state) const noexcept {
+    // Average response time < 300ms with enough data points = likely bot/random clicking
+    return state.avg_response_time_ms < 300.0 && state.total_attempts > 5;
+}
+
+bool SessionManager::isConsistentlySlowWithErrors(const SkillState& state) const noexcept {
+    return state.consecutive_slow_error >= 3;
+}
+
 } // namespace hestia::bkt

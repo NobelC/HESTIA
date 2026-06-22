@@ -22,6 +22,17 @@ public:
 
     // Aplica el decaimiento de P(T) de forma incremental
     void applyTransitionDecay(SkillState& state, double lambda) const noexcept;
+
+    // ─── Fatigue & pattern detection ───
+
+    // Returns fatigue multiplier: 1.0 = fresh (0-10 min), decays to 0.3 at 30+ min
+    [[nodiscard]] double getFatigueMultiplier(const SkillState& state) const noexcept;
+
+    // Returns true if average response time < 300ms with > 5 attempts (bot/random clicking)
+    [[nodiscard]] bool isClickingPattern(const SkillState& state) const noexcept;
+
+    // Returns true if 3+ consecutive slow errors (conceptual difficulty)
+    [[nodiscard]] bool isConsistentlySlowWithErrors(const SkillState& state) const noexcept;
 };
 
 } // namespace hestia::bkt

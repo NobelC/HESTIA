@@ -34,9 +34,20 @@ struct LogEntry {
     double p_learn;
 };
 
+// Analytics: real progression for dashboard
+struct SkillProgress {
+    int skill_id;
+    double pL_start;
+    double pL_current;
+    double pL_delta;
+    int total_sessions;
+    double avg_hit_rate;
+    bool is_mastered;
+};
+
 class PersistenceLayer {
 public:
-    static constexpr int CURRENT_VERSION = 5; // v5: plearn added, indexes, students
+    static constexpr int CURRENT_VERSION = 6; // v6: session_events, plearn added, indexes, students
     static constexpr size_t METHOD_COUNT = 5;
 
     static std::unique_ptr<PersistenceLayer> create(const std::string& db_path);
@@ -59,6 +70,9 @@ public:
     [[nodiscard]] mab::METHOD getBestMethod(int student_id, int skill_id) noexcept;
     [[nodiscard]] double getAverageSessionDuration(int student_id) noexcept;
     [[nodiscard]] std::vector<LogEntry> getSessionLogs(int student_id, int64_t session_start_ts) noexcept;
+    
+    // Feature: Progress query
+    [[nodiscard]] std::vector<SkillProgress> getStudentProgress(int student_id) noexcept;
 
     // Bug fix #6: persistencia del estado SRS entre sesiones
     [[nodiscard]] PersistenceResult saveSrsState(int student_id, const srs::SRSQueue& queue) noexcept;
@@ -81,12 +95,16 @@ private:
     // Bug fix #6: statements para persistir cola SRS
     sqlite3_stmt* m_upsert_srs = nullptr;
     sqlite3_stmt* m_select_srs = nullptr;
+    
+    // Events
+    sqlite3_stmt* m_insert_event = nullptr;
 
     // Analytics statements
     sqlite3_stmt* m_select_hitrate = nullptr;
     sqlite3_stmt* m_select_pl_history = nullptr;
     sqlite3_stmt* m_select_session_durations = nullptr;
     sqlite3_stmt* m_select_session_logs = nullptr;
+    sqlite3_stmt* m_select_student_progress = nullptr;
 };
 
 } // namespace hestia::persistence

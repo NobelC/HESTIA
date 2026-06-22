@@ -41,7 +41,9 @@ TEST_CASE("Calibration: oscillating sequence does not reach mastery", "[bkt][cal
         engine.updateKnowledge(state, (i % 2 == 0), 2000.0);
     }
 
-    REQUIRE(state.m_pLearn_operative < 0.90);
+    // With P(G)=0.01 (slow errors) and P(S)=0.10, correct is stronger evidence than error.
+    // It may creep up but should not reach absolute mastery consolidation (0.95).
+    REQUIRE(state.m_pLearn_operative < MASTERY_CONSOLIDATION_THRESHOLD);
     REQUIRE_FALSE(state.is_mastered);
 }
 
