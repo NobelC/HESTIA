@@ -60,15 +60,14 @@ namespace hestia::bkt {
     }
 
     [[nodiscard]] constexpr double calculateErrorPenalty(double time, double avg_time) noexcept {
-      // Impulsive error (fast) -> less penalty. Conceptual error (slow) -> full penalty.
+      // Impulsive error (fast) -> less penalty. Normal or slow error -> full penalty.
       double t_fast = avg_time * 0.5;
-      double t_slow = avg_time * 1.5;
       double w_min = 0.2; // Min penalty multiplier for impulsive errors
 
       if (time <= t_fast) return w_min;
-      if (time >= t_slow) return 1.0;
+      if (time >= avg_time) return 1.0;
 
-      return w_min + ((time - t_fast) / (t_slow - t_fast)) * (1.0 - w_min); 
+      return w_min + ((time - t_fast) / (avg_time - t_fast)) * (1.0 - w_min); 
     }
 
     //==========================================================================
@@ -81,10 +80,11 @@ namespace hestia::bkt {
 
       if(state.isColdStart()){
         state.is_initialized = true;
-        state.avg_response_time_ms = response_time_ms;
+        state.avg_response_time_ms = std::clamp(response_time_ms, 500.0, 5000.0);
       }
       else{
         state.avg_response_time_ms = state.avg_response_time_ms + (response_time_ms - state.avg_response_time_ms) / state.total_attempts;
+        state.avg_response_time_ms = std::clamp(state.avg_response_time_ms, 500.0, 5000.0);
       }
 
       // ── Operative channel: posterior + transition + omega penalty ──
@@ -138,16 +138,16 @@ namespace hestia::bkt {
         // ── Adaptive P(G): finer error classification ──
         if (time_ratio > 2.0) {
             // Deep conceptual error — strong P(G) decay
-            state.m_pGuess = std::max(0.01, state.m_pGuess * 0.70);
+            state.m_pGuess = std::max(0.10, state.m_pGuess * 0.70);
             state.m_pSlip  = std::min(0.30, state.m_pSlip  * 1.05);
             state.consecutive_slow_error++;
         } else if (time_ratio < 0.5) {
             // Impulsive error — mild penalty
-            state.m_pGuess = std::max(0.01, state.m_pGuess * 0.95);
+            state.m_pGuess = std::max(0.10, state.m_pGuess * 0.95);
             state.consecutive_slow_error = 0;
         } else {
             // Normal-speed error
-            state.m_pGuess = std::max(0.01, state.m_pGuess * 0.80);
+            state.m_pGuess = std::max(0.10, state.m_pGuess * 0.80);
             if (response_time_ms > state.avg_response_time_ms * 2.0) {
                 state.consecutive_slow_error++;
             } else {
@@ -189,6 +189,21 @@ namespace hestia::bkt {
           state.m_sustained_theorical_dominance++;
       } else {
           state.m_sustained_theorical_dominance = 0;
+      }
+
+      // Reverse Anti-Stall: Do not let operative float too far above theoretical
+      if (state.m_pLearn_operative > state.m_pLearn_theorical + 0.30) {
+          state.m_pLearn_operative = state.m_pLearn_theorical + 0.30;
+      }
+
+      // Demastery
+      if (state.m_pLearn_operative < 0.85) {
+          state.is_mastered = false;
+      }
+
+      // Effort boost: Rescue struggling learners
+      if (state.total_attempts > 15 && state.m_pLearn_operative < 0.50) {
+          state.m_pTransition = std::min(P_TRANSITION_CEILING, state.m_pTransition + 0.02);
       }
 
       state.last_practice_time = std::chrono::system_clock::now(); // wall-clock para persistencia
