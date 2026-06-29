@@ -114,12 +114,14 @@ PYBIND11_MODULE(hestia_core, m) {
     py::module_ m_core = m.def_submodule("core", "Core Module");
 
     py::class_<core::ResponseResult>(m_core, "ResponseResult")
+        .def_readonly("next_skill_id", &core::ResponseResult::next_skill_id)
         .def_readonly("next_method", &core::ResponseResult::next_method)
         .def_readonly("next_zone", &core::ResponseResult::next_zone)
         .def_readonly("current_pL", &core::ResponseResult::current_pL)
         .def_readonly("current_pL_theorical", &core::ResponseResult::current_pL_theorical)
         .def_readonly("was_anomalous", &core::ResponseResult::was_anomalous)
-        .def_readonly("valid_skill", &core::ResponseResult::valid_skill);
+        .def_readonly("valid_skill", &core::ResponseResult::valid_skill)
+        .def_readonly("newly_mastered", &core::ResponseResult::newly_mastered);
 
     py::class_<core::ResponseProcessor>(m_core, "ResponseProcessor")
         .def(py::init<bkt::BKTEngine&, mab::MABEngine&, bkt::SessionManager&,

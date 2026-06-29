@@ -14,6 +14,12 @@ import threading
 # Asegurar que el bridge sea importable
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
+# Pre-importar el enum METHOD para usarlo en ExercisesView sin imports dinámicos
+try:
+    from bridge.hestia_bridge import METHOD as _HESTIA_METHOD
+except Exception:
+    _HESTIA_METHOD = None
+
 # ─────────────────────────────────────────────
 # SISTEMA DE DISEÑO
 # ─────────────────────────────────────────────
@@ -450,46 +456,46 @@ class DashboardView(tk.Frame):
 
 
 class ExercisesView(tk.Frame):
-    QUESTIONS = [
-        {
-            "id": 0,
-            "skill": "Vocal A",
-            "domain": "Alfabetización",
-            "question": "¿Cuál es esta letra?",
-            "symbol": "A",
-            "options": ["A", "E", "O", "I"],
-            "answer": "A",
-        },
-        {
-            "id": 7,
-            "skill": "Número 3",
-            "domain": "Numeración",
-            "question": "¿Cuántos elementos hay?",
-            "symbol": "★ ★ ★",
-            "options": ["2", "3", "4", "5"],
-            "answer": "3",
-        },
-        {
-            "id": 1,
-            "skill": "Vocal E",
-            "domain": "Alfabetización",
-            "question": "¿Cuál es esta vocal?",
-            "symbol": "E",
-            "options": ["A", "E", "I", "U"],
-            "answer": "E",
-        },
-    ]
-
     def __init__(self, parent, bridge=None, student_id=1):
         super().__init__(parent, bg=COLORS["bg"])
         self._bridge = bridge
         self._sid = student_id
-        self._idx = 0
         self._streak = 0
         self._correct_total = 0
         self._attempts = 0
         self._pL = 0.20
         self._feedback_job = None
+
+        from content_loader import ContentLoader
+        self._loader = ContentLoader()
+        from audio_player import AudioPlayer
+        self._audio = AudioPlayer(os.path.dirname(os.path.abspath(__file__)) + "/../")
+
+        self.exercises = []
+        try:
+            base_dir = os.path.dirname(os.path.abspath(__file__)) + "/../"
+            for mod in ["vocales.json", "numeros.json", "limites.json"]:
+                data = self._loader.cargar_modulo(base_dir, mod)
+                self.exercises.extend(data.get("exercises", []))
+        except Exception as e:
+            print("Error cargando ejercicios:", e)
+
+        self._current_ex = None
+        self._target_skill = 0
+        
+        if _HESTIA_METHOD:
+            self._target_method = _HESTIA_METHOD.VISUAL
+        else:
+            self._target_method = 0
+            
+        if self._bridge:
+            try:
+                state = self._bridge.storage.load_skill_state(self._sid, self._target_skill)
+                if state:
+                    self._pL = state.pLearn_operative
+            except Exception:
+                pass
+
         self._build()
 
     # ── construcción inicial ──────────────────
@@ -502,7 +508,7 @@ class ExercisesView(tk.Frame):
         tk.Label(hdr, text="Sesión de práctica",
                  font=("Helvetica", 13), bg=COLORS["bg"],
                  fg=COLORS["text_2"]).pack(anchor="w")
-        tk.Label(hdr, text="Ejercicios",
+        tk.Label(hdr, text="Ejercicios Adaptativos",
                  font=("Helvetica", 30, "bold"),
                  bg=COLORS["bg"], fg=COLORS["text"]).pack(anchor="w")
         tk.Frame(self, bg=COLORS["accent"], height=2, width=48).pack(
@@ -517,6 +523,12 @@ class ExercisesView(tk.Frame):
             font=("Helvetica", 11, "bold"),
             bg=COLORS["surface_2"], fg=COLORS["accent"])
         self._skill_lbl.pack(side="left")
+        
+        self._method_lbl = tk.Label(
+            session_bar, text="",
+            font=("Helvetica", 10),
+            bg=COLORS["surface_2"], fg=COLORS["text_2"])
+        self._method_lbl.pack(side="left", padx=20)
 
         right_info = tk.Frame(session_bar, bg=COLORS["surface_2"])
         right_info.pack(side="right")
@@ -554,15 +566,21 @@ class ExercisesView(tk.Frame):
         self._question_lbl = tk.Label(
             self._card, text="",
             font=("Helvetica", 16),
-            bg=COLORS["surface_2"], fg=COLORS["text_2"])
+            bg=COLORS["surface_2"], fg=COLORS["text_2"],
+            wraplength=700, justify="left")
         self._question_lbl.pack(anchor="w")
+
+        # Audio
+        self._audio_btn = HestiaButton(
+            self._card, text="🔊 Reproducir audio",
+            command=self._play_audio, style="secondary")
 
         # Símbolo grande (letra o número)
         self._symbol_lbl = tk.Label(
             self._card, text="",
-            font=("Helvetica", 96, "bold"),
+            font=("Helvetica", 80, "bold"),
             bg=COLORS["surface_2"], fg=COLORS["text"])
-        self._symbol_lbl.pack(pady=28)
+        self._symbol_lbl.pack(pady=20)
 
         # Feedback (oculto inicialmente)
         self._feedback_lbl = tk.Label(
@@ -598,61 +616,96 @@ class ExercisesView(tk.Frame):
 
     # ── lógica ───────────────────────────────
 
+    def _play_audio(self):
+        if self._current_ex and "audio_path" in self._current_ex:
+            self._audio.play(self._current_ex["audio_path"])
+
     def _load_question(self):
-        q = self.QUESTIONS[self._idx % len(self.QUESTIONS)]
+        method_int = self._target_method.value if hasattr(self._target_method, "value") else self._target_method
+        
+        candidates = [e for e in self.exercises if e.get("skill_id") == self._target_skill and e.get("method_id") == method_int]
+        if not candidates:
+            # Fallback
+            candidates = [e for e in self.exercises if e.get("skill_id") == self._target_skill]
+            
+        if not candidates:
+            self._skill_lbl.config(text=f"Habilidad ID: {self._target_skill}")
+            self._domain_lbl.config(text="")
+            self._question_lbl.config(text="Felicidades, has completado los ejercicios o no hay más disponibles.")
+            for btn in self._opt_btns: btn.config(state="disabled", text="")
+            self._audio_btn.pack_forget()
+            self._symbol_lbl.config(text="🎉")
+            self._feedback_lbl.config(text="")
+            return
 
-        self._skill_lbl.config(text=f"Habilidad: {q['skill']}")
-        self._domain_lbl.config(text=q["domain"].upper())
-        self._question_lbl.config(text=q["question"])
-        self._symbol_lbl.config(text=q["symbol"], fg=COLORS["text"])
+        import random
+        self._current_ex = random.choice(candidates)
+
+        m_map = {0: "Visual", 1: "Auditivo", 2: "Kinestésico", 3: "Fonético", 4: "Global"}
+        m_text = m_map.get(method_int, str(method_int))
+        self._method_lbl.config(text=f"Estrategia sugerida: {m_text}")
+
+        self._skill_lbl.config(text=f"Habilidad ID: {self._target_skill}")
+        self._domain_lbl.config(text="EJERCICIO")
+        self._question_lbl.config(text=self._current_ex.get("question", "¿Cuál es la respuesta?"))
+        
+        if "audio_path" in self._current_ex:
+            self._audio_btn.pack(pady=(15, 0))
+        else:
+            self._audio_btn.pack_forget()
+
+        sym = self._current_ex.get("correct_answer", "")
+        if "audio_text" in self._current_ex or "audio_path" in self._current_ex:
+            self._symbol_lbl.config(text="🔊", fg=COLORS["text_2"], font=("Helvetica", 64))
+        else:
+            self._symbol_lbl.config(text=sym, fg=COLORS["text"], font=("Helvetica", 80, "bold"))
+
         self._feedback_lbl.config(text="")
-        self._next_btn.config(state="normal")
+        self._next_btn.config(state="disabled")
 
-        for i, opt in enumerate(q["options"]):
+        options = self._current_ex.get("options", [])
+        for i in range(4):
             btn = self._opt_btns[i]
-            btn.config(
-                text=opt,
-                bg=COLORS["surface_3"],
-                fg=COLORS["text"],
-                state="normal",
-            )
-            btn._bg = COLORS["surface_3"]
-            btn._fg = COLORS["text"]
-            btn._cmd = lambda o=opt: self._check(o)
-            btn.bind("<Button-1>",       lambda e, o=opt: self._check(o))
-            btn.bind("<ButtonRelease-1>", lambda e, o=opt: None)
+            if i < len(options):
+                opt = options[i]
+                btn.config(text=opt, bg=COLORS["surface_3"], fg=COLORS["text"], state="normal")
+                btn._bg = COLORS["surface_3"]
+                btn._fg = COLORS["text"]
+                btn._cmd = lambda o=opt: self._check(o)
+                btn.bind("<Button-1>",       lambda e, o=opt: self._check(o))
+                btn.bind("<ButtonRelease-1>", lambda e, o=opt: None)
+            else:
+                btn.config(text="", state="disabled")
 
     def _check(self, chosen):
-        q = self.QUESTIONS[self._idx % len(self.QUESTIONS)]
-        correct = (chosen == q["answer"])
+        if not self._current_ex: return
+        correct = (chosen == self._current_ex.get("correct_answer"))
         self._attempts += 1
 
-        # Feedback visual
         if correct:
             self._correct_total += 1
             self._streak += 1
-            fb_text  = f"✓  ¡Correcto!"
+            fb_text  = f"✓  {self._current_ex.get('feedback_correct', '¡Correcto!')}"
             fb_color = COLORS["success"]
             sym_col  = COLORS["success"]
         else:
             self._streak = 0
-            fb_text  = f"✗  La respuesta es  \"{q['answer']}\""
+            fb_text  = f"✗  {self._current_ex.get('feedback_incorrect', 'Incorrecto.')}"
             fb_color = COLORS["error"]
             sym_col  = COLORS["error"]
 
         self._feedback_lbl.config(text=fb_text, fg=fb_color)
         self._symbol_lbl.config(fg=sym_col)
 
-        # Actualizar estadísticas con resultado del motor
-        if self._bridge:
+        if self._bridge and _HESTIA_METHOD:
             try:
-                from bridge.hestia_bridge import METHOD
                 result = self._bridge.process_response(
-                    self._sid, q["id"],
-                    METHOD.VISUAL, correct, 1500.0)
+                    self._sid, self._target_skill,
+                    self._target_method, correct, 1500.0)
                 self._pL = result.current_pL
-            except Exception:
-                # Fallback mock si falla el bridge
+                self._target_skill = result.next_skill_id
+                self._target_method = result.next_method
+            except Exception as ex:
                 delta = 0.04 if correct else -0.02
                 self._pL = max(0.01, min(0.98, self._pL + delta))
         else:
@@ -664,7 +717,7 @@ class ExercisesView(tk.Frame):
 
         # Colorear opciones
         for btn in self._opt_btns:
-            if btn.cget("text") == q["answer"]:
+            if btn.cget("text") == self._current_ex.get("correct_answer"):
                 btn.config(bg=COLORS["success_dim"], fg=COLORS["success"], state="disabled")
                 btn._bg = COLORS["success_dim"]
             elif btn.cget("text") == chosen and not correct:
@@ -673,8 +726,9 @@ class ExercisesView(tk.Frame):
             else:
                 btn.config(state="disabled")
 
+        self._next_btn.config(state="normal")
+
     def _next_question(self):
-        self._idx += 1
         self._load_question()
 
 

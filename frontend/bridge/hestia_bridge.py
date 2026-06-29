@@ -82,8 +82,8 @@ class HestiaBridge:
         
         self._initialized = True
 
-    def process_response(self, student_id: int, skill_id: int, 
-                         method: METHOD, correct: bool, 
+    def process_response(self, student_id: int, skill_id: int,
+                         method: METHOD, correct: bool,
                          response_ms: float) -> Any:
         """
         Procesa una respuesta del estudiante y retorna la recomendación para el siguiente ejercicio.
@@ -100,8 +100,9 @@ class HestiaBridge:
         if state is None:
             state = hestia_core.bkt.SkillState()
             state.skill_id = skill_id
-            
-        self.processor.start_session(state)
+
+        # Bug fix: C++ signature is startSession(int student_id, SkillState& state)
+        self.processor.start_session(student_id, state)
         return state
 
     def end_session(self, state: hestia_core.bkt.SkillState) -> None:
@@ -125,8 +126,13 @@ class HestiaBridge:
 # Instancia global para facilitar el acceso desde la UI
 bridge = None
 
-def get_bridge(db_path: str = "hestia.db") -> HestiaBridge:
+def get_bridge(db_path: Optional[str] = None) -> HestiaBridge:
+    """Retorna (o crea) la instancia singleton del bridge.
+    Si db_path es None, usa <PROJECT_ROOT>/hestia.db como ruta absoluta.
+    """
     global bridge
     if bridge is None:
+        if db_path is None:
+            db_path = os.path.join(PROJECT_ROOT, "hestia.db")
         bridge = HestiaBridge(db_path=db_path)
     return bridge
