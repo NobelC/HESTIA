@@ -51,7 +51,7 @@ TEST_CASE("ZoneBlender: Selección de zona según P(L)", "[zone]") {
         REQUIRE(ratio < 0.52);
     }
 
-    SECTION("~9% zona baja con P(L) = 0.75") {
+    SECTION("~16% zona baja con P(L) = 0.75") {
         SkillState state;
         state.m_pLearn_operative = 0.75;
 
@@ -65,10 +65,10 @@ TEST_CASE("ZoneBlender: Selección de zona según P(L)", "[zone]") {
             if (z == Zone::LOW) low_count++;
         }
 
-        // P(LOW) = 0.05 + 0.80 * (1 / (1 + exp(10*(0.75-0.45)))) = 0.088
+        // P(LOW) = 0.05 + 0.80 * (1 / (1 + exp(6*(0.75-0.45)))) = 0.163
         double ratio = static_cast<double>(low_count) / N;
-        REQUIRE(ratio > 0.05);
-        REQUIRE(ratio < 0.15);
+        REQUIRE(ratio > 0.10);
+        REQUIRE(ratio < 0.22);
     }
 
     SECTION("Combina BKT + Graph: selectExercise retorna resultado válido") {

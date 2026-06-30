@@ -13,8 +13,9 @@ ZoneBlender::ZoneBlender(uint64_t seed) {
 
 double ZoneBlender::getLowZoneProbability(double pL) noexcept {
     // Sigmoidea invertida: alta probabilidad LOW cuando pL es bajo
-    // P(LOW) = 0.85 / (1 + e^(10*(pL - 0.45))) + 0.05
-    double sigmoid = 1.0 / (1.0 + std::exp(10.0 * (pL - 0.45)));
+    // P(LOW) = 0.85 / (1 + e^(6*(pL - 0.45))) + 0.05
+    // Adjusted slope from 10.0 to 6.0 to make zone transitions smoother.
+    double sigmoid = 1.0 / (1.0 + std::exp(6.0 * (pL - 0.45)));
     return 0.05 + 0.80 * sigmoid;  // rango [0.05, 0.85]
 }
 

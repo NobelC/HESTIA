@@ -173,9 +173,14 @@ namespace hestia::bkt {
           if (window_rate >= STALL_HIT_RATE_THRESHOLD &&
               th_op_gap > ANTI_STALL_MARGIN &&
               state.m_pLearn_theorical >= ANTI_STALL_MIN_THEORICAL) {
-              // Unlock: operative catches up to theoretical
-              state.m_pLearn_operative = state.m_pLearn_theorical;
-              state.is_mastered = true;
+              // Soft Unlock: operative smoothly catches up to theoretical (closes 40% of the gap)
+              state.m_pLearn_operative += (th_op_gap * 0.40);
+              // Also boost P(T) so the student has momentum to reach mastery naturally
+              state.m_pTransition = std::min(P_TRANSITION_CEILING, state.m_pTransition + 0.15);
+              
+              if (state.m_pLearn_operative >= 0.85) {
+                  state.is_mastered = true;
+              }
           }
 
           // Reset window regardless
@@ -192,8 +197,10 @@ namespace hestia::bkt {
       }
 
       // Reverse Anti-Stall: Do not let operative float too far above theoretical
-      if (state.m_pLearn_operative > state.m_pLearn_theorical + 0.30) {
-          state.m_pLearn_operative = state.m_pLearn_theorical + 0.30;
+      double excess = state.m_pLearn_operative - (state.m_pLearn_theorical + 0.30);
+      if (excess > 0.0) {
+          // Soft descent: Drag down by 30% of the excess rather than hard capping
+          state.m_pLearn_operative -= (excess * 0.30);
       }
 
       // Demastery
