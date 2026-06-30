@@ -79,6 +79,9 @@ public:
     /// Consulta skills desbloqueadas dado un conjunto de skills dominadas
     [[nodiscard]] std::vector<int> getUnlockedSkills(const std::vector<int>& mastered_ids) const;
 
+    /// Retorna el contexto de la sesión actual
+    [[nodiscard]] const SessionContext& getCurrentSession() const noexcept { return m_current_session; }
+
 private:
     bkt::BKTEngine& m_bkt;
     mab::MABEngine& m_mab;

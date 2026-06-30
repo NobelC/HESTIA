@@ -32,6 +32,13 @@ PYBIND11_MODULE(hestia_core, m) {
     py::class_<bkt::BKTEngine>(m_bkt, "BKTEngine")
         .def(py::init<>());
 
+    m_bkt.attr("DEFAULT_P_LEARN") = bkt::DEFAULT_P_LEARN;
+    m_bkt.attr("DEFAULT_P_TRANSITION") = bkt::DEFAULT_P_TRANSITION;
+    m_bkt.attr("DEFAULT_P_GUESS") = bkt::DEFAULT_P_GUESS;
+    m_bkt.attr("DEFAULT_P_SLIP") = bkt::DEFAULT_P_SLIP;
+    m_bkt.attr("DEFAULT_P_FORGET") = bkt::DEFAULT_P_FORGET;
+    m_bkt.attr("FORGET_THRESHOLD_HOURS") = bkt::FORGET_THRESHOLD_HOURS.count();
+
     py::class_<bkt::SessionManager>(m_bkt, "SessionManager")
         .def(py::init<>())
         .def("get_fatigue_multiplier", &bkt::SessionManager::getFatigueMultiplier);
@@ -92,6 +99,22 @@ PYBIND11_MODULE(hestia_core, m) {
     // Módulo Persistence
     py::module_ m_persistence = m.def_submodule("persistence", "Persistence Module");
 
+    py::class_<persistence::SkillProgress>(m_persistence, "SkillProgress")
+        .def_readonly("skill_id", &persistence::SkillProgress::skill_id)
+        .def_readonly("pL_start", &persistence::SkillProgress::pL_start)
+        .def_readonly("pL_current", &persistence::SkillProgress::pL_current)
+        .def_readonly("pL_delta", &persistence::SkillProgress::pL_delta)
+        .def_readonly("total_sessions", &persistence::SkillProgress::total_sessions)
+        .def_readonly("avg_hit_rate", &persistence::SkillProgress::avg_hit_rate)
+        .def_readonly("is_mastered", &persistence::SkillProgress::is_mastered);
+
+    py::class_<persistence::LogEntry>(m_persistence, "LogEntry")
+        .def_readonly("skill_id", &persistence::LogEntry::skill_id)
+        .def_readonly("method", &persistence::LogEntry::method)
+        .def_readonly("timestamp", &persistence::LogEntry::timestamp)
+        .def_readonly("is_correct", &persistence::LogEntry::is_correct)
+        .def_readonly("p_learn", &persistence::LogEntry::p_learn);
+
     py::class_<persistence::PersistenceLayer, 
                std::unique_ptr<persistence::PersistenceLayer>>(m_persistence, "PersistenceLayer")
         .def_static("create", &persistence::PersistenceLayer::create)
@@ -108,10 +131,32 @@ PYBIND11_MODULE(hestia_core, m) {
         .def("load_srs_state", [](persistence::PersistenceLayer& self, int student_id,
                                    srs::SRSQueue& queue) {
              self.loadSrsState(student_id, queue);
-         });
+         })
+        .def("get_student_progress", &persistence::PersistenceLayer::getStudentProgress)
+        .def("get_hit_rate", &persistence::PersistenceLayer::getHitRate)
+        .def("get_session_logs", &persistence::PersistenceLayer::getSessionLogs)
+        .def("get_pl_history", &persistence::PersistenceLayer::getPLHistory)
+        .def("get_best_method", &persistence::PersistenceLayer::getBestMethod)
+        .def("get_average_session_duration", &persistence::PersistenceLayer::getAverageSessionDuration);
 
     // Módulo Core
     py::module_ m_core = m.def_submodule("core", "Core Module");
+
+    py::class_<core::SessionReport>(m_core, "SessionReport")
+        .def_readonly("practiced_skills", &core::SessionReport::practiced_skills)
+        .def_readonly("total_attempts", &core::SessionReport::total_attempts)
+        .def_readonly("hit_rate", &core::SessionReport::hit_rate)
+        .def_readonly("most_used_method", &core::SessionReport::most_used_method)
+        .def_readonly("pl_evolution", &core::SessionReport::pl_evolution)
+        .def_readonly("total_session_time_minutes", &core::SessionReport::total_session_time_minutes);
+
+    py::class_<core::SessionContext>(m_core, "SessionContext")
+        .def_readonly("student_id", &core::SessionContext::student_id)
+        .def_readonly("start_timestamp", &core::SessionContext::start_timestamp)
+        .def_readonly("history", &core::SessionContext::history)
+        .def_readonly("cumulative_correct", &core::SessionContext::cumulative_correct)
+        .def_readonly("cumulative_total", &core::SessionContext::cumulative_total)
+        .def("get_session_hit_rate", &core::SessionContext::getSessionHitRate);
 
     py::class_<core::ResponseResult>(m_core, "ResponseResult")
         .def_readonly("next_skill_id", &core::ResponseResult::next_skill_id)
@@ -136,5 +181,7 @@ PYBIND11_MODULE(hestia_core, m) {
         .def("start_session", &core::ResponseProcessor::startSession)
         .def("end_session", &core::ResponseProcessor::endSession)
         .def("get_due_skills", &core::ResponseProcessor::getDueSkills)
-        .def("get_unlocked_skills", &core::ResponseProcessor::getUnlockedSkills);
+        .def("get_unlocked_skills", &core::ResponseProcessor::getUnlockedSkills)
+        .def("get_current_session", &core::ResponseProcessor::getCurrentSession, py::return_value_policy::reference_internal)
+        .def("generate_session_report", &core::ResponseProcessor::generateSessionReport);
 }

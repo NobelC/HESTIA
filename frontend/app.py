@@ -125,6 +125,7 @@ class Sidebar(tk.Frame):
         self._nav = navigate_callback
         self._active = "dashboard"
         self._buttons = {}
+        self.demo_mode_var = tk.BooleanVar(value=False)
         self._build()
 
     def _build(self):
@@ -176,11 +177,16 @@ class Sidebar(tk.Frame):
             anchor="w",
         ).pack(fill="x", padx=28, pady=(0, 8))
 
-        self._make_nav_btn("settings", "⚙  Configuración")
+        self._make_nav_btn("settings",   "⚙  Configuración")
+        self._make_nav_btn("diagnostics", "🔬  Diagnóstico Motor")
 
         # Footer
         footer = tk.Frame(self, bg=COLORS["sidebar_bg"])
         footer.pack(side="bottom", fill="x", padx=24, pady=20)
+        
+        # Toggle Demo Técnica
+        tk.Checkbutton(footer, text="Modo Demo Técnica", variable=self.demo_mode_var, bg=COLORS["sidebar_bg"], fg=COLORS["accent"], selectcolor=COLORS["sidebar_bg"], activebackground=COLORS["sidebar_bg"], activeforeground=COLORS["accent"], command=lambda: self.event_generate("<<ToggleDemo>>")).pack(pady=5)
+
         tk.Frame(footer, bg=COLORS["border"], height=1).pack(fill="x", pady=(0, 12))
         tk.Label(
             footer, text="v1.0  ·  JIC 2026",
@@ -390,11 +396,46 @@ class DashboardView(tk.Frame):
         cards_frame = tk.Frame(self, bg=COLORS["bg"])
         cards_frame.pack(fill="x", pady=(0, 28))
 
+        # --- NUEVO: Data Real ---
+        mastered_count = 0
+        total_time_h = 0.0
+        pending_count = 0
+        hit_rate = 0.0
+        logs = []
+        domains = []
+        
+        if self._bridge:
+            try:
+                progress = self._bridge.get_student_progress(self._sid)
+                mastered_count = sum(1 for p in progress if p.is_mastered)
+                if progress:
+                    hit_rate = self._bridge.get_session_hit_rate()
+                    pending_count = len(self._bridge.get_due_skills())
+                
+                # Mock domains from progress for demo purposes
+                domains = [
+                    ("Alfabetización", 0.65, COLORS["accent"]),
+                    ("Numeración",     0.40, COLORS["blue"]),
+                ]
+                
+                real_logs = self._bridge.get_session_logs(self._sid, 0)
+                for l in list(real_logs)[-3:]: # last 3
+                    logs.append(("●", f"Skill {l.skill_id}", f"P(L): {l.p_learn:.2f}", COLORS["blue"]))
+            except Exception as e:
+                print("Error loading dashboard data:", e)
+
+        if not logs:
+            logs = [
+                ("●", "Vocal A dominada",         "+P(L) 0.20 → 0.91", COLORS["success"]),
+                ("◆", "Número 3 en práctica",      "P(L) actual: 0.54",  COLORS["blue"]),
+                ("▲", "Número 2 requiere repaso",  "Inactiva 52h",       COLORS["accent"]),
+            ]
+
         stat_data = [
-            ("12",    "Habilidades dominadas",  COLORS["accent"]),
-            ("87%",   "Precisión de hoy",        COLORS["success"]),
-            ("4.5h",  "Tiempo total de estudio", COLORS["blue"]),
-            ("3",     "Habilidades pendientes",  COLORS["text_2"]),
+            (str(mastered_count), "Habilidades dominadas",  COLORS["accent"]),
+            (f"{int(hit_rate * 100)}%", "Precisión de hoy", COLORS["success"]),
+            (f"{total_time_h:.1f}h",  "Tiempo total de estudio", COLORS["blue"]),
+            (str(pending_count), "Habilidades pendientes",  COLORS["text_2"]),
         ]
 
         for val, lbl, color in stat_data:
@@ -408,11 +449,6 @@ class DashboardView(tk.Frame):
             bg=COLORS["bg"], fg=COLORS["text"],
             anchor="w",
         ).pack(fill="x", pady=(0, 14))
-
-        domains = [
-            ("Alfabetización", 0.65, COLORS["accent"]),
-            ("Numeración",     0.40, COLORS["blue"]),
-        ]
 
         for name, val, color in domains:
             row = tk.Frame(self, bg=COLORS["bg"])
@@ -437,12 +473,6 @@ class DashboardView(tk.Frame):
             bg=COLORS["bg"], fg=COLORS["text"],
             anchor="w",
         ).pack(fill="x", pady=(28, 14))
-
-        logs = [
-            ("●", "Vocal A dominada",         "+P(L) 0.20 → 0.91", COLORS["success"]),
-            ("◆", "Número 3 en práctica",      "P(L) actual: 0.54",  COLORS["blue"]),
-            ("▲", "Número 2 requiere repaso",  "Inactiva 52h",       COLORS["accent"]),
-        ]
         for icon, title, detail, color in logs:
             row = tk.Frame(self, bg=COLORS["surface_2"], padx=16, pady=12)
             row.pack(fill="x", pady=3)
@@ -481,7 +511,8 @@ class ExercisesView(tk.Frame):
             print("Error cargando ejercicios:", e)
 
         self._current_ex = None
-        self._target_skill = 0
+        self._target_skill = 1 # Map string to int appropriately in load_question
+        self._current_zone = "LOW"
         
         if _HESTIA_METHOD:
             self._target_method = _HESTIA_METHOD.VISUAL
@@ -529,6 +560,12 @@ class ExercisesView(tk.Frame):
             font=("Helvetica", 10),
             bg=COLORS["surface_2"], fg=COLORS["text_2"])
         self._method_lbl.pack(side="left", padx=20)
+        
+        self._zone_lbl = tk.Label(
+            session_bar, text="LOW",
+            font=("Helvetica", 9, "bold"),
+            bg=COLORS["surface_3"], fg=COLORS["text"], padx=8, pady=2)
+        self._zone_lbl.pack(side="left", padx=10)
 
         right_info = tk.Frame(session_bar, bg=COLORS["surface_2"])
         right_info.pack(side="right")
@@ -641,9 +678,9 @@ class ExercisesView(tk.Frame):
         import random
         self._current_ex = random.choice(candidates)
 
-        m_map = {0: "Visual", 1: "Auditivo", 2: "Kinestésico", 3: "Fonético", 4: "Global"}
+        m_map = {0: "👁 Visual", 1: "🔊 Auditivo", 2: "✋ Kinestésico", 3: "🗣 Fonético", 4: "🌐 Global"}
         m_text = m_map.get(method_int, str(method_int))
-        self._method_lbl.config(text=f"Estrategia sugerida: {m_text}")
+        self._method_lbl.config(text=f"{m_text}")
 
         self._skill_lbl.config(text=f"Habilidad ID: {self._target_skill}")
         self._domain_lbl.config(text="EJERCICIO")
@@ -694,18 +731,30 @@ class ExercisesView(tk.Frame):
             fb_color = COLORS["error"]
             sym_col  = COLORS["error"]
 
+        # Guardado toast
+        toast = tk.Label(self._card, text="Guardado ✓", font=("Helvetica", 9), bg=COLORS["surface_2"], fg=COLORS["text_3"])
+        toast.place(relx=0.9, rely=0.1)
+        self.after(1500, toast.destroy)
+
         self._feedback_lbl.config(text=fb_text, fg=fb_color)
         self._symbol_lbl.config(fg=sym_col)
 
         if self._bridge and _HESTIA_METHOD:
             try:
+                # Need to map self._target_skill from int to int, already an int
                 result = self._bridge.process_response(
                     self._sid, self._target_skill,
                     self._target_method, correct, 1500.0)
                 self._pL = result.current_pL
                 self._target_skill = result.next_skill_id
                 self._target_method = result.next_method
+                self._current_zone = result.next_zone.name if hasattr(result.next_zone, "name") else str(result.next_zone)
+                self._zone_lbl.config(text=self._current_zone)
+                
+                # Event to update diagnostic view
+                self.event_generate("<<ResponseProcessed>>")
             except Exception as ex:
+                print(ex)
                 delta = 0.04 if correct else -0.02
                 self._pL = max(0.01, min(0.98, self._pL + delta))
         else:
@@ -735,6 +784,8 @@ class ExercisesView(tk.Frame):
 class ProgressView(tk.Frame):
     def __init__(self, parent, bridge=None, student_id=1):
         super().__init__(parent, bg=COLORS["bg"])
+        self._bridge = bridge
+        self._sid = student_id
         self._build()
 
     def _build(self):
@@ -748,15 +799,27 @@ class ProgressView(tk.Frame):
             anchor="w", pady=(0, 28))
 
         # Skills
-        skills = [
-            ("Vocal A",   0.91, "Dominada",      COLORS["success"]),
-            ("Vocal E",   0.68, "En progreso",    COLORS["accent"]),
-            ("Vocal I",   0.30, "Iniciando",      COLORS["blue"]),
-            ("Número 1",  0.85, "Dominada",       COLORS["success"]),
-            ("Número 2",  0.54, "En progreso",    COLORS["accent"]),
-            ("Número 3",  0.40, "En progreso",    COLORS["accent"]),
-            ("Número 4",  0.12, "Bloqueada",      COLORS["text_3"]),
-        ]
+        skills = []
+        if self._bridge:
+            try:
+                progress = self._bridge.get_student_progress(self._sid)
+                for p in progress:
+                    status = "Dominada" if p.is_mastered else ("En progreso" if p.pL_current > 0.2 else "Iniciando")
+                    color = COLORS["success"] if p.is_mastered else (COLORS["accent"] if p.pL_current > 0.2 else COLORS["blue"])
+                    skills.append((f"Skill {p.skill_id}", p.pL_current, status, color))
+            except Exception as e:
+                print("Error loading progress:", e)
+
+        if not skills:
+            skills = [
+                ("Vocal A",   0.91, "Dominada",      COLORS["success"]),
+                ("Vocal E",   0.68, "En progreso",    COLORS["accent"]),
+                ("Vocal I",   0.30, "Iniciando",      COLORS["blue"]),
+                ("Número 1",  0.85, "Dominada",       COLORS["success"]),
+                ("Número 2",  0.54, "En progreso",    COLORS["accent"]),
+                ("Número 3",  0.40, "En progreso",    COLORS["accent"]),
+                ("Número 4",  0.12, "Bloqueada",      COLORS["text_3"]),
+            ]
 
         for name, val, status, color in skills:
             row = tk.Frame(self, bg=COLORS["surface_2"], padx=20, pady=14)
@@ -787,6 +850,8 @@ class ProgressView(tk.Frame):
 class SettingsView(tk.Frame):
     def __init__(self, parent, bridge=None, student_id=1):
         super().__init__(parent, bg=COLORS["bg"])
+        self._bridge = bridge
+        self._sid = student_id
         self._build()
 
     def _build(self):
@@ -799,21 +864,44 @@ class SettingsView(tk.Frame):
         tk.Frame(self, bg=COLORS["accent"], height=2, width=48).pack(
             anchor="w", pady=(0, 28))
 
-        sections = [
-            ("Motor BKT", [
-                ("P(Transición) por defecto", "0.10"),
-                ("Umbral de olvido (horas)",  "48"),
-                ("Umbral anti-stall",          "3 intentos"),
-            ]),
-            ("Motor MAB / UCB", [
-                ("Constante de exploración C", "1.0"),
-                ("Métodos disponibles",         "5 activos"),
-            ]),
-            ("Sistema SRS", [
-                ("Intervalos de repaso",  "1 · 3 · 7 · 14 · 30 días"),
-                ("Retención de logs",     "6 meses"),
-            ]),
-        ]
+        sections = []
+        if self._bridge:
+            try:
+                c = self._bridge.get_bkt_constants()
+                sections = [
+                    ("Motor BKT", [
+                        ("P(Transición) por defecto", str(c["DEFAULT_P_TRANSITION"])),
+                        ("Umbral de olvido (horas)",  str(c["FORGET_THRESHOLD_HOURS"])),
+                        ("P(Learn) por defecto",      str(c["DEFAULT_P_LEARN"])),
+                        ("P(Slip) por defecto",       str(c["DEFAULT_P_SLIP"])),
+                    ]),
+                    ("Motor MAB / UCB", [
+                        ("Constante de exploración C", "1.0"),
+                        ("Métodos disponibles",         "5 activos"),
+                    ]),
+                    ("Sistema SRS", [
+                        ("Intervalos de repaso",  "1 · 3 · 7 · 14 · 30 días"),
+                        ("Retención de logs",     "6 meses"),
+                    ]),
+                ]
+            except Exception as e:
+                print("Error loading settings:", e)
+        if not sections:
+            sections = [
+                ("Motor BKT", [
+                    ("P(Transición) por defecto", "0.10"),
+                    ("Umbral de olvido (horas)",  "48"),
+                    ("Umbral anti-stall",          "3 intentos"),
+                ]),
+                ("Motor MAB / UCB", [
+                    ("Constante de exploración C", "1.0"),
+                    ("Métodos disponibles",         "5 activos"),
+                ]),
+                ("Sistema SRS", [
+                    ("Intervalos de repaso",  "1 · 3 · 7 · 14 · 30 días"),
+                    ("Retención de logs",     "6 meses"),
+                ]),
+            ]
 
         for sec_name, params in sections:
             tk.Label(self, text=sec_name,
@@ -841,17 +929,418 @@ class SettingsView(tk.Frame):
                      command=lambda: None).pack(anchor="w")
 
 
-# ─────────────────────────────────────────────
-# APLICACIÓN PRINCIPAL
-# ─────────────────────────────────────────────
+class MotorDiagnosticsView(tk.Frame):
+    """Panel técnico de diagnóstico del motor — para demostración ante el jurado."""
+
+    MASTERY_THRESHOLD = 0.90
+    CEIL_THRESHOLD    = 0.98
+    MAX_HISTORY       = 50
+    METHOD_NAMES      = ["VISUAL", "AUDITORY", "KINESTHETIC", "PHONETIC", "GLOBAL"]
+
+    def __init__(self, parent, bridge=None, student_id=1):
+        super().__init__(parent, bg=COLORS["sidebar_bg"], width=360)
+        self.pack_propagate(False)
+        self._bridge = bridge
+        self._sid = student_id
+        self._sim_job = None
+
+        # Live state
+        self.pl_op   = 0.20
+        self.pl_th   = 0.20
+        self.gap     = 0.0
+        self.mastered = False
+        self.streak  = 0
+        self.avg_rt  = 0.0
+        self.bkt = {"pT": 0.10, "pG": 0.25, "pS": 0.10, "pF": 0.50,
+                    "pT_prev": 0.10, "pG_prev": 0.25}
+        self.method_q = {m: (None, 0) for m in self.METHOD_NAMES}
+        self.history = []
+
+        self._build()
+        self.update_data()
+
+    # ── Construction ─────────────────────────
+
+    def _build(self):
+        C = COLORS
+        sbg = C["sidebar_bg"]
+
+        # Title bar
+        title_bar = tk.Frame(self, bg=sbg)
+        title_bar.pack(fill="x", padx=16, pady=(18, 4))
+        tk.Label(title_bar, text="🔬", font=("Helvetica", 14),
+                 bg=sbg, fg=C["accent"]).pack(side="left")
+        tk.Label(title_bar, text=" Diagnóstico Motor",
+                 font=("Helvetica", 13, "bold"),
+                 bg=sbg, fg=C["accent"]).pack(side="left")
+        tk.Frame(self, bg=C["accent"], height=1).pack(fill="x", padx=16, pady=(0, 10))
+
+        self._build_section_a()
+        tk.Frame(self, bg=C["border"], height=1).pack(fill="x", padx=16, pady=8)
+        self._build_section_b()
+        tk.Frame(self, bg=C["border"], height=1).pack(fill="x", padx=16, pady=8)
+        self._build_section_c()
+        tk.Frame(self, bg=C["border"], height=1).pack(fill="x", padx=16, pady=8)
+        self._build_section_d()
+        tk.Frame(self, bg=C["border"], height=1).pack(fill="x", padx=16, pady=8)
+        self._build_section_e()
+
+    def _build_section_a(self):
+        C = COLORS
+        sbg = C["sidebar_bg"]
+        tk.Label(self, text="MÉTRICAS DUALES",
+                 font=("Helvetica", 8, "bold"), bg=sbg, fg=C["text_3"],
+                 anchor="w").pack(fill="x", padx=16)
+
+        grid = tk.Frame(self, bg=sbg)
+        grid.pack(fill="x", padx=12, pady=(4, 0))
+
+        def metric_card(parent, row, col, label_text, var_name):
+            f = tk.Frame(parent, bg=C["surface_2"], padx=8, pady=6)
+            f.grid(row=row, column=col, padx=3, pady=3, sticky="nsew")
+            parent.columnconfigure(col, weight=1)
+            lbl_val = tk.Label(f, text="—", font=("Helvetica", 18, "bold"),
+                               bg=C["surface_2"], fg=C["text"])
+            lbl_val.pack()
+            tk.Label(f, text=label_text, font=("Helvetica", 7),
+                     bg=C["surface_2"], fg=C["text_3"]).pack()
+            setattr(self, var_name, lbl_val)
+
+        metric_card(grid, 0, 0, "P(L) Operativo", "_lbl_pl_op")
+        metric_card(grid, 0, 1, "P(L) Teórico",   "_lbl_pl_th")
+        metric_card(grid, 1, 0, "Brecha",           "_lbl_gap")
+        metric_card(grid, 1, 1, "Dominado",         "_lbl_mast")
+
+    def _build_section_b(self):
+        C = COLORS
+        sbg = C["sidebar_bg"]
+        tk.Label(self, text="PARÁMETROS BKT",
+                 font=("Helvetica", 8, "bold"), bg=sbg, fg=C["text_3"],
+                 anchor="w").pack(fill="x", padx=16)
+
+        f = tk.Frame(self, bg=C["surface"], padx=12, pady=8)
+        f.pack(fill="x", padx=12, pady=(4, 0))
+
+        self._bkt_lbls = {}
+        params = [
+            ("pT",  "P(Transición)"),
+            ("pG",  "P(Guess)    "),
+            ("pS",  "P(Slip)     "),
+            ("pF",  "P(Forget)   "),
+            ("rt",  "T.resp prom "),
+            ("str", "Racha actual"),
+        ]
+        for key, label in params:
+            row = tk.Frame(f, bg=C["surface"])
+            row.pack(fill="x", pady=1)
+            tk.Label(row, text=label, font=("Courier", 9),
+                     bg=C["surface"], fg=C["text_3"], width=14,
+                     anchor="w").pack(side="left")
+            lbl = tk.Label(row, text="——", font=("Courier", 9, "bold"),
+                           bg=C["surface"], fg=C["text"], anchor="w")
+            lbl.pack(side="left")
+            self._bkt_lbls[key] = lbl
+
+    def _build_section_c(self):
+        C = COLORS
+        sbg = C["sidebar_bg"]
+        tk.Label(self, text="SELECCIÓN DE MÉTODO (UCB)",
+                 font=("Helvetica", 8, "bold"), bg=sbg, fg=C["text_3"],
+                 anchor="w").pack(fill="x", padx=16)
+
+        self._method_canvas = tk.Canvas(self, bg=sbg, highlightthickness=0,
+                                        height=120)
+        self._method_canvas.pack(fill="x", padx=12, pady=(4, 0))
+        self._draw_method_bars()
+
+    def _build_section_d(self):
+        C = COLORS
+        sbg = C["sidebar_bg"]
+        tk.Label(self, text="SIMULACIÓN ACELERADA",
+                 font=("Helvetica", 8, "bold"), bg=sbg, fg=C["text_3"],
+                 anchor="w").pack(fill="x", padx=16)
+
+        btns = tk.Frame(self, bg=sbg)
+        btns.pack(fill="x", padx=12, pady=(4, 0))
+
+        sim_style = dict(font=("Helvetica", 9, "bold"),
+                         bg=C["surface_3"], fg=C["text"],
+                         activebackground=C["border_light"],
+                         relief="flat", padx=6, pady=4, cursor="hand2")
+        tk.Button(btns, text="▶ Random",
+                  command=lambda: self._start_sim("random"),
+                  **sim_style).pack(side="left", padx=(0, 3))
+        tk.Button(btns, text="▶ Perfecto",
+                  command=lambda: self._start_sim("perfect"),
+                  **sim_style).pack(side="left", padx=3)
+        tk.Button(btns, text="▶ Oscilante",
+                  command=lambda: self._start_sim("oscil"),
+                  **sim_style).pack(side="left", padx=3)
+        tk.Button(btns, text="■ Stop",
+                  command=self._stop_sim,
+                  font=("Helvetica", 9, "bold"),
+                  bg=C["error_dim"], fg=C["error"],
+                  activebackground=C["error_dim"],
+                  relief="flat", padx=6, pady=4,
+                  cursor="hand2").pack(side="left", padx=3)
+
+    def _build_section_e(self):
+        C = COLORS
+        sbg = C["sidebar_bg"]
+        tk.Label(self, text="CURVA P(L) EN VIVO",
+                 font=("Helvetica", 8, "bold"), bg=sbg, fg=C["text_3"],
+                 anchor="w").pack(fill="x", padx=16)
+
+        self._graph = tk.Canvas(self, height=130, bg=C["surface"],
+                                highlightthickness=0)
+        self._graph.pack(fill="x", padx=12, pady=(4, 12))
+
+        leg = tk.Frame(self, bg=sbg)
+        leg.pack(padx=16, pady=(0, 12), anchor="w")
+        for color, label in [
+            (C["blue"],    "— P(L) Op."),
+            (C["error"],   "⋯ P(L) Teo."),
+            (C["success"], "--- 0.90"),
+            ("#666",       "--- 0.98"),
+        ]:
+            tk.Label(leg, text=label, font=("Helvetica", 7),
+                     bg=sbg, fg=color).pack(side="left", padx=3)
+
+        self._draw_graph()
+
+    # ── Drawing helpers ──────────────────────
+
+    def _draw_method_bars(self):
+        mc = self._method_canvas
+        mc.delete("all")
+        W = 336
+        ROW_H = 22
+        mc.config(height=ROW_H * len(self.METHOD_NAMES) + 4)
+        BAR_W = 130
+
+        qs = [self.method_q[m][0] for m in self.METHOD_NAMES
+              if self.method_q[m][0] is not None]
+        max_q = max(qs) if qs else 1.0
+        selected_method = max(
+            self.METHOD_NAMES,
+            key=lambda m: self.method_q[m][0] if self.method_q[m][0] is not None else -1
+        )
+
+        for i, mname in enumerate(self.METHOD_NAMES):
+            q_val, n_att = self.method_q[mname]
+            y = i * ROW_H + 4
+            is_sel = (mname == selected_method and q_val is not None)
+
+            mc.create_text(2, y + ROW_H // 2,
+                           text=mname[:8], anchor="w",
+                           font=("Courier", 8),
+                           fill=COLORS["accent"] if is_sel else COLORS["text_3"])
+
+            mc.create_rectangle(72, y + 4, 72 + BAR_W, y + ROW_H - 4,
+                                 fill=COLORS["surface_3"], outline="")
+
+            if q_val is None:
+                mc.create_text(72 + BAR_W // 2, y + ROW_H // 2,
+                               text="sin probar", font=("Courier", 7),
+                               fill=COLORS["text_3"])
+            else:
+                fill_w = int(BAR_W * (q_val / max_q))
+                fill_c = COLORS["accent"] if is_sel else COLORS["blue_dim"]
+                mc.create_rectangle(72, y + 4, 72 + fill_w, y + ROW_H - 4,
+                                     fill=fill_c, outline="")
+                mc.create_text(72 + BAR_W + 4, y + ROW_H // 2,
+                               text=f"Q={q_val:.2f}  n={n_att}",
+                               anchor="w", font=("Courier", 7),
+                               fill=COLORS["text_2"])
+            if is_sel:
+                mc.create_text(W - 2, y + ROW_H // 2,
+                               text="◀", anchor="e",
+                               font=("Helvetica", 9),
+                               fill=COLORS["accent"])
+
+    def _draw_graph(self):
+        g = self._graph
+        g.delete("all")
+        W = g.winfo_width() or 330
+        H = 130
+        PAD = 6
+        inner_h = H - PAD * 2
+
+        def y_px(val):
+            return PAD + inner_h - int(inner_h * max(0.0, min(1.0, val)))
+
+        g.create_line(0, y_px(0.90), W, y_px(0.90),
+                      fill=COLORS["success"], dash=(6, 3))
+        g.create_line(0, y_px(0.98), W, y_px(0.98),
+                      fill="#555", dash=(4, 2))
+
+        if len(self.history) < 2:
+            return
+
+        dx = (W - PAD * 2) / max(1, len(self.history) - 1)
+        pts_op, pts_th = [], []
+        for i, (op, th) in enumerate(self.history):
+            x = PAD + i * dx
+            pts_op.extend([x, y_px(op)])
+            pts_th.extend([x, y_px(th)])
+
+        if len(pts_op) >= 4:
+            g.create_line(pts_op, fill=COLORS["blue"], width=2, smooth=True)
+        if len(pts_th) >= 4:
+            g.create_line(pts_th, fill=COLORS["error"], width=1,
+                          dash=(3, 2), smooth=True)
+
+        op_x = PAD + (len(self.history) - 1) * dx
+        g.create_oval(op_x - 4, y_px(self.pl_op) - 4,
+                      op_x + 4, y_px(self.pl_op) + 4,
+                      fill=COLORS["blue"], outline="")
+        g.create_oval(op_x - 3, y_px(self.pl_th) - 3,
+                      op_x + 3, y_px(self.pl_th) + 3,
+                      fill=COLORS["error"], outline="")
+
+    # ── Data refresh ─────────────────────────
+
+    def update_data(self, skill_id=1):
+        """Pull live state from bridge and refresh all widgets."""
+        if self._bridge:
+            try:
+                state = self._bridge.storage.load_skill_state(self._sid, skill_id)
+                if state:
+                    old_pT = self.bkt["pT"]
+                    old_pG = self.bkt["pG"]
+                    self.pl_op   = state.pLearn_operative
+                    self.pl_th   = state.pLearn_theorical
+                    self.gap     = self.pl_op - self.pl_th
+                    self.mastered = self.pl_th >= self.MASTERY_THRESHOLD
+                    self.streak  = state.consecutive_correct
+                    self.avg_rt  = state.avg_response_time_ms
+                    self.bkt.update({
+                        "pT": state.pTransition,
+                        "pG": state.pGuess,
+                        "pS": state.pSlip,
+                        "pF": state.pForget,
+                        "pT_prev": old_pT,
+                        "pG_prev": old_pG,
+                    })
+                    try:
+                        method_states = self._bridge.storage.load_method_states(
+                            self._sid, skill_id)
+                        m_names = ["VISUAL", "AUDITORY", "KINESTHETIC", "PHONETIC", "GLOBAL"]
+                        for i, m in enumerate(m_names):
+                            ms = method_states[i]
+                            if ms.n_attempts > 0:
+                                self.method_q[m] = (ms.q_value, ms.n_attempts)
+                            else:
+                                self.method_q[m] = (None, 0)
+                    except Exception:
+                        pass
+            except Exception as e:
+                print(f"[Diag] {e}")
+
+        self.history.append((self.pl_op, self.pl_th))
+        if len(self.history) > self.MAX_HISTORY:
+            self.history.pop(0)
+
+        self._refresh_widgets()
+
+    def _refresh_widgets(self):
+        C = COLORS
+        gap_col  = C["accent"] if self.gap > 0.1 else C["text"]
+        mast_col = C["success"] if self.mastered else C["text_2"]
+
+        self._lbl_pl_op.config(text=f"{self.pl_op:.3f}", fg=C["blue"])
+        self._lbl_pl_th.config(text=f"{self.pl_th:.3f}", fg=C["error"])
+        self._lbl_gap.config(text=f"{self.gap:+.3f}", fg=gap_col)
+        self._lbl_mast.config(text="SI ✓" if self.mastered else "NO",
+                              fg=mast_col)
+
+        def arrow(new, old):
+            if new > old + 0.001: return "↑"
+            if new < old - 0.001: return "↓"
+            return "→"
+
+        pT_prev = self.bkt.get("pT_prev", self.bkt["pT"])
+        pG_prev = self.bkt.get("pG_prev", self.bkt["pG"])
+
+        self._bkt_lbls["pT"].config(
+            text=f"{pT_prev:.2f} → {self.bkt['pT']:.2f}  {arrow(self.bkt['pT'], pT_prev)}")
+        self._bkt_lbls["pG"].config(
+            text=f"{pG_prev:.2f} → {self.bkt['pG']:.2f}  {arrow(self.bkt['pG'], pG_prev)}")
+        self._bkt_lbls["pS"].config(text=f"{self.bkt['pS']:.2f}")
+        self._bkt_lbls["pF"].config(text=f"{self.bkt['pF']:.2f}")
+        self._bkt_lbls["rt"].config(text=f"{self.avg_rt:.0f}ms")
+        streak_col = C["success"] if self.streak >= 3 else C["text"]
+        self._bkt_lbls["str"].config(
+            text=f"{self.streak} correctas", fg=streak_col)
+
+        self._draw_method_bars()
+        self._draw_graph()
+
+    # ── Simulation engine ────────────────────
+
+    def _start_sim(self, mode):
+        self._stop_sim()
+        self._sim_iter = 0
+        self._sim_mode = mode
+        self._run_sim_step()
+
+    def _stop_sim(self):
+        if self._sim_job:
+            self.after_cancel(self._sim_job)
+            self._sim_job = None
+
+    def _run_sim_step(self):
+        import random
+        if self._sim_iter >= 50:
+            return
+
+        mode = self._sim_mode
+        if mode == "random":
+            correct = random.random() > 0.5
+        elif mode == "perfect":
+            correct = True
+        else:  # oscil
+            correct = (self._sim_iter % 4) < 3
+
+        pL  = self.pl_op
+        pT  = self.bkt["pT"]
+        pG  = self.bkt["pG"]
+        pS  = self.bkt["pS"]
+        pF  = self.bkt["pF"]
+
+        if correct:
+            pL_post = (pL * (1 - pS)) / (pL * (1 - pS) + (1 - pL) * pG)
+        else:
+            pL_post = (pL * pS) / (pL * pS + (1 - pL) * (1 - pG))
+
+        new_pL = pL_post + (1 - pL_post) * pT - pL_post * pF * 0.01
+        new_pL = max(0.01, min(0.98, new_pL))
+        new_th = min(0.98, self.pl_th + pT * 0.7) if correct else max(0.01, self.pl_th - 0.005)
+
+        self.pl_op  = new_pL
+        self.pl_th  = new_th
+        self.gap    = self.pl_op - self.pl_th
+        self.mastered = self.pl_th >= self.MASTERY_THRESHOLD
+        self.streak = (self.streak + 1) if correct else 0
+
+        self.history.append((self.pl_op, self.pl_th))
+        if len(self.history) > self.MAX_HISTORY:
+            self.history.pop(0)
+
+        self._refresh_widgets()
+        self._sim_iter += 1
+        self._sim_job = self.after(80, self._run_sim_step)
+
 
 class HestiaApp:
     VIEWS = {
-        "dashboard": DashboardView,
-        "exercises": ExercisesView,
-        "progress":  ProgressView,
-        "settings":  SettingsView,
+        "dashboard":   DashboardView,
+        "exercises":   ExercisesView,
+        "progress":    ProgressView,
+        "settings":    SettingsView,
+        "diagnostics": MotorDiagnosticsView,
     }
+
 
     def __init__(self, root: tk.Tk):
         self.root = root
@@ -895,6 +1384,12 @@ class HestiaApp:
             self._root_frame, bg=COLORS["bg"])
         self._content_wrapper.pack(
             side="left", fill="both", expand=True)
+            
+        self._diag_view = MotorDiagnosticsView(self._root_frame, bridge=self._bridge, student_id=self._student_id)
+        # Not packed initially
+        
+        self.root.bind("<<ToggleDemo>>", self._on_toggle_demo)
+        self.root.bind("<<ResponseProcessed>>", lambda e: self._diag_view.update_data())
 
         # Scrollable container
         self._canvas = tk.Canvas(
@@ -930,6 +1425,12 @@ class HestiaApp:
     def _on_mousewheel(self, event):
         self._canvas.yview_scroll(
             int(-1 * (event.delta / 120)), "units")
+
+    def _on_toggle_demo(self, event):
+        if self._sidebar.demo_mode_var.get():
+            self._diag_view.pack(side="right", fill="y")
+        else:
+            self._diag_view.pack_forget()
 
     # ── Navegación ────────────────────────────
 

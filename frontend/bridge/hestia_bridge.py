@@ -123,6 +123,28 @@ class HestiaBridge:
         """
         return self.processor.get_unlocked_skills(mastered_ids)
 
+    def get_student_progress(self, student_id: int) -> List[Any]:
+        return self.storage.get_student_progress(student_id)
+
+    def get_session_hit_rate(self) -> float:
+        return self.processor.get_current_session().get_session_hit_rate()
+
+    def get_session_logs(self, student_id: int, session_start_ts: int) -> List[Any]:
+        return self.storage.get_session_logs(student_id, session_start_ts)
+
+    def get_current_session(self) -> Any:
+        return self.processor.get_current_session()
+
+    def get_bkt_constants(self) -> dict:
+        return {
+            "DEFAULT_P_LEARN": hestia_core.bkt.DEFAULT_P_LEARN,
+            "DEFAULT_P_TRANSITION": hestia_core.bkt.DEFAULT_P_TRANSITION,
+            "DEFAULT_P_GUESS": hestia_core.bkt.DEFAULT_P_GUESS,
+            "DEFAULT_P_SLIP": hestia_core.bkt.DEFAULT_P_SLIP,
+            "DEFAULT_P_FORGET": hestia_core.bkt.DEFAULT_P_FORGET,
+            "FORGET_THRESHOLD_HOURS": hestia_core.bkt.FORGET_THRESHOLD_HOURS,
+        }
+
 # Instancia global para facilitar el acceso desde la UI
 bridge = None
 
