@@ -1,0 +1,17 @@
+Tabla sugerida para el artículo: Evidencia de adaptación del método pedagógico
+
+Perfil | Método favorecido | Uso 1ra mitad | Uso 2da mitad | Interpretación
+--- | --- | ---: | ---: | ---
+visual_fuerte | Visual | 12 | 16 | Aumentó la prioridad del método favorecido
+fonetico_fuerte | Fonético | 17 | 19 | Aumentó la prioridad del método favorecido
+balanceado | Fonético | 17 | 18 | Aumentó la prioridad del método favorecido
+alta_variabilidad | Fonético | 15 | 17 | Aumentó la prioridad del método favorecido
+
+Resumen funcional
+
+Perfil | Intentos | Precisión | Dominio promedio | Método favorecido | Q Visual | Q Fonético
+--- | ---: | ---: | ---: | --- | ---: | ---:
+visual_fuerte | 40 | 77.5% | 98.0% | Visual | 0.8732 | 0.5958
+fonetico_fuerte | 40 | 87.5% | 97.87% | Fonético | 0.075 | 0.9722
+balanceado | 40 | 62.5% | 97.35% | Fonético | 0.0 | 0.7229
+alta_variabilidad | 40 | 60.0% | 93.62% | Fonético | 0.3062 | 0.6922

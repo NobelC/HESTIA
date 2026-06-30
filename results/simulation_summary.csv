@@ -1,0 +1,5 @@
+profile,attempts,correct,accuracy_percent,avg_mastery_percent,best_method,best_method_label,m1_q,m1_uses,m4_q,m4_uses
+visual_fuerte,40,31,77.5,98.0,M1_visual,Visual,0.8732,28,0.5958,12
+fonetico_fuerte,40,35,87.5,97.87,M4_fonetico,Fonético,0.075,4,0.9722,36
+balanceado,40,25,62.5,97.35,M4_fonetico,Fonético,0.0,5,0.7229,35
+alta_variabilidad,40,24,60.0,93.62,M4_fonetico,Fonético,0.3062,8,0.6922,32

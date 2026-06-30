@@ -1,0 +1,91 @@
+{
+    "project": "HESTIA",
+    "version": "1.0",
+    "description": "Grafo de habilidades educativas para el motor adaptativo HESTIA",
+    "skills": [
+    {
+        "id": "vocal_a",
+        "name": "Vocal A",
+        "category": "vocales",
+        "level": "basico",
+        "prerequisites": []
+    },
+    {
+        "id": "vocal_e",
+        "name": "Vocal E",
+        "category": "vocales",
+        "level": "basico",
+        "prerequisites": ["vocal_a"]
+    },
+    {
+        "id": "vocal_i",
+        "name": "Vocal I",
+        "category": "vocales",
+        "level": "basico",
+        "prerequisites": ["vocal_e"]
+    },
+    {
+        "id": "vocal_o",
+        "name": "Vocal O",
+        "category": "vocales",
+        "level": "basico",
+        "prerequisites": ["vocal_i"]
+    },
+    {
+        "id": "vocal_u",
+        "name": "Vocal U",
+        "category": "vocales",
+        "level": "basico",
+        "prerequisites": ["vocal_o"]
+    },
+    {
+        "id": "numero_1",
+        "name": "Número 1",
+        "category": "numeros",
+        "level": "basico",
+        "prerequisites": []
+    },
+    {
+        "id": "numero_2",
+        "name": "Número 2",
+        "category": "numeros",
+        "level": "basico",
+        "prerequisites": ["numero_1"]
+    },
+    {
+        "id": "numero_3",
+        "name": "Número 3",
+        "category": "numeros",
+        "level": "basico",
+        "prerequisites": ["numero_2"]
+    },
+    {
+        "id": "limites_concepto",
+        "name": "Concepto intuitivo de límite",
+        "category": "calculo",
+        "level": "universitario_basico",
+        "prerequisites": []
+    },
+    {
+        "id": "limites_sustitucion_directa",
+        "name": "Límites por sustitución directa",
+        "category": "calculo",
+        "level": "universitario_basico",
+        "prerequisites": ["limites_concepto"]
+    },
+    {
+        "id": "limites_indeterminacion",
+        "name": "Identificación de indeterminación 0/0",
+        "category": "calculo",
+        "level": "universitario_basico",
+        "prerequisites": ["limites_sustitucion_directa"]
+    },
+    {
+        "id": "limites_factorizacion",
+        "name": "Límites por factorización",
+        "category": "calculo",
+        "level": "universitario_basico",
+        "prerequisites": ["limites_indeterminacion"]
+    }
+    ]
+}

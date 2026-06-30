@@ -1,9 +1,0 @@
-Coloca aquí tus audios en formato WAV.
-Nombres sugeridos para vocales:
-a.wav, e.wav, i.wav, o.wav, u.wav
-
-Para números:
-uno.wav, dos.wav, tres.wav, cuatro.wav, cinco.wav, seis.wav, siete.wav, ocho.wav, nueve.wav, diez.wav
-
-Si usas MP3, instala pygame con: pip install pygame
-La demo intenta reproducir WAV con winsound y MP3 con pygame si está instalado.

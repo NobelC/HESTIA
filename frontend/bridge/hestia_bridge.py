@@ -13,7 +13,7 @@ if SEARCH_PATH not in sys.path:
     sys.path.append(SEARCH_PATH)
 
 try:
-    import hestia_core
+    import hestia_core  # type: ignore
 except ImportError as e:
     potential_so = glob.glob(os.path.join(SEARCH_PATH, "hestia_core*.so"))
     if not potential_so:
@@ -21,11 +21,11 @@ except ImportError as e:
             f"No se pudo encontrar 'hestia_core' en {SEARCH_PATH}. "
             f"Asegúrate de haber ejecutado './scripts/build.sh'. Error original: {e}"
         )
-    import hestia_core
+    import hestia_core  # type: ignore
 
 # --- Aliases para legibilidad ---
-from hestia_core.mab import METHOD
-from hestia_core.zone import Zone
+from hestia_core.mab import METHOD  # type: ignore
+from hestia_core.zone import Zone   # type: ignore
 
 class HestiaBridge:
     """
