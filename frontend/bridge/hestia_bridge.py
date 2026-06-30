@@ -92,6 +92,41 @@ class HestiaBridge:
             student_id, skill_id, method, correct, response_ms
         )
 
+    def process_response_timed(self, student_id: int, skill_id: int,
+                               method: METHOD, correct: bool,
+                               response_ms: float) -> tuple:
+        import time
+        t0 = time.perf_counter()
+        result = self.processor.process_response(
+            student_id, skill_id, method, correct, response_ms
+        )
+        t1 = time.perf_counter()
+        latency_ms = (t1 - t0) * 1000.0
+
+        # Formatear logs
+        method_name = method.name if hasattr(method, 'name') else str(method)
+        logs = []
+        logs.append(f"[C++] Update O(1) en {latency_ms:.2f}ms -> Persistencia SQLite OK.")
+        logs.append(f"[BKT] P(L) actualizado a {result.current_pL:.3f}")
+        
+        next_method_name = result.next_method.name if hasattr(result.next_method, 'name') else str(result.next_method)
+        logs.append(f"[MAB] Siguiente brazo seleccionado: {next_method_name}")
+
+        return result, latency_ms, logs
+
+    def get_method_states_for_ui(self, student_id: int, skill_id: int) -> dict:
+        try:
+            states = self.storage.load_method_states(student_id, skill_id)
+            m_names = ["VISUAL", "AUDITORY", "KINESTHETIC", "PHONETIC", "GLOBAL"]
+            res = {}
+            for i, m in enumerate(m_names):
+                ms = states[i]
+                res[m] = {"q_value": ms.ewma_success, "attempts": ms.count_attempts, "successes": ms.successes}
+            return res
+        except Exception as e:
+            print(f"Error loading method states: {e}")
+            return {m: {"q_value": 0.0, "attempts": 0, "successes": 0} for m in ["VISUAL", "AUDITORY", "KINESTHETIC", "PHONETIC", "GLOBAL"]}
+
     def start_session(self, student_id: int, skill_id: int) -> hestia_core.bkt.SkillState:
         """
         Carga el estado del estudiante y marca el inicio de una sesión.

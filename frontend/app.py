@@ -185,7 +185,7 @@ class Sidebar(tk.Frame):
         footer.pack(side="bottom", fill="x", padx=24, pady=20)
         
         # Toggle Demo Técnica
-        tk.Checkbutton(footer, text="Modo Demo Técnica", variable=self.demo_mode_var, bg=COLORS["sidebar_bg"], fg=COLORS["accent"], selectcolor=COLORS["sidebar_bg"], activebackground=COLORS["sidebar_bg"], activeforeground=COLORS["accent"], command=lambda: self.event_generate("<<ToggleDemo>>")).pack(pady=5)
+        self._make_nav_btn("demo", "▶ Demo Técnica")
 
         tk.Frame(footer, bg=COLORS["border"], height=1).pack(fill="x", pady=(0, 12))
         tk.Label(
@@ -1332,6 +1332,8 @@ class MotorDiagnosticsView(tk.Frame):
         self._sim_job = self.after(80, self._run_sim_step)
 
 
+from demo_dashboard import TelemetryDashboard
+
 class HestiaApp:
     VIEWS = {
         "dashboard":   DashboardView,
@@ -1339,6 +1341,7 @@ class HestiaApp:
         "progress":    ProgressView,
         "settings":    SettingsView,
         "diagnostics": MotorDiagnosticsView,
+        "demo":        TelemetryDashboard,
     }
 
 
@@ -1427,16 +1430,20 @@ class HestiaApp:
             int(-1 * (event.delta / 120)), "units")
 
     def _on_toggle_demo(self, event):
-        if self._sidebar.demo_mode_var.get():
-            self._diag_view.pack(side="right", fill="y")
-        else:
-            self._diag_view.pack_forget()
+        pass
 
     # ── Navegación ────────────────────────────
 
     def _navigate(self, key):
         self._sidebar.set_active(key)
-
+        
+        if key == "demo":
+            self._sidebar.pack_forget()
+            if self.root.winfo_width() < 1600:
+                self.root.geometry("1600x900")
+        else:
+            self._sidebar.pack(side="left", fill="y", before=self._content_wrapper)
+            
         # Limpiar contenido actual
         for w in self._content_frame.winfo_children():
             w.destroy()

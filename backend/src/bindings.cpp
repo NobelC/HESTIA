@@ -54,6 +54,12 @@ PYBIND11_MODULE(hestia_core, m) {
         .value("GLOBAL", mab::METHOD::GLOBAL)
         .export_values();
 
+    py::class_<mab::MethodState>(m_mab, "MethodState")
+        .def(py::init<>())
+        .def_readwrite("count_attempts", &mab::MethodState::count_attempts)
+        .def_readwrite("successes", &mab::MethodState::successes)
+        .def_readwrite("ewma_success", &mab::MethodState::ewma_success);
+
     py::class_<mab::MABEngine>(m_mab, "MABEngine")
         .def(py::init<double, uint64_t>(), py::arg("exploration_c") = 1.0, py::arg("seed") = 0)
         .def("load_states", [](mab::MABEngine& self,
