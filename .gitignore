@@ -29,6 +29,8 @@ Thumbs.db
 *.swo
 *~
 
-# Data (si es sensible o grande)
-data/*.csv
-data/*.sqlite
+# Data / Logs (si es sensible o grande)
+*.db
+*.sqlite
+*.csv
+*.log
