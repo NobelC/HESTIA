@@ -52,6 +52,38 @@ HESTIA operates on **two simultaneous dimensions of adaptation**, a capability u
 | **Build** | CMake + Catch2 | Reproducible across all 3 development machines |
 | **Simulation** | Python (external scripts) | Monte Carlo and stress bot kept outside the main system |
 
+## Instalación y Ejecución
+
+HESTIA incluye scripts automáticos para preparar el entorno (compilación C++, entorno virtual de Python y dependencias).
+
+### En Linux / macOS
+```bash
+./setup.sh
+```
+
+### En Windows
+```cmd
+setup.bat
+```
+
+### Ejecutar la Aplicación
+Una vez finalizado el setup, activa el entorno virtual y ejecuta el archivo principal:
+```bash
+# Linux / macOS
+source venv/bin/activate
+python frontend/run_hestia.py
+
+# Windows
+call venv\Scripts\activate.bat
+python frontend\run_hestia.py
+```
+
+### Simulation Lab
+HESTIA incluye un laboratorio de simulación que prueba el motor estadístico mediante Arquetipos de Monte Carlo:
+```bash
+python -m frontend.sim_lab
+```
+
 ---
 
 ## License
