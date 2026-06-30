@@ -1,5 +1,0 @@
-profile,best_method_label,first_half_best_method_uses,second_half_best_method_uses,first_half_distribution,second_half_distribution,adaptation_interpretation
-visual_fuerte,Visual,12,16,Fonético:8; Visual:12,Fonético:4; Visual:16,Aumentó la prioridad del método favorecido
-fonetico_fuerte,Fonético,17,19,Fonético:17; Visual:3,Fonético:19; Visual:1,Aumentó la prioridad del método favorecido
-balanceado,Fonético,17,18,Fonético:17; Visual:3,Fonético:18; Visual:2,Aumentó la prioridad del método favorecido
-alta_variabilidad,Fonético,15,17,Fonético:15; Visual:5,Fonético:17; Visual:3,Aumentó la prioridad del método favorecido
